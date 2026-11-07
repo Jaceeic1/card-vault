@@ -403,7 +403,7 @@ footer.foot a{text-decoration:none;font-weight:700}
     </div>
     <div class="alert" id="needEst" hidden>
       <p id="needEstText"></p>
-      <button class="btn primary" id="needEstBtn">Get estimates</button>
+      <button class="btn primary" id="needEstBtn">Find last sales</button>
     </div>
 
     <div class="sec-head"><h2 class="sec">Your cards</h2><span class="note" id="showing"></span></div>
@@ -498,7 +498,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault · v12</span>
+  <span>© 2026 Card Vault · v13</span>
   <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -662,7 +662,7 @@ $$("[data-logout]").forEach(b => b.addEventListener("click", async () => { await
 
 /* ---------- values ---------- */
 function estValue(c){
-  const e = c.estimate; if (!e || (c.estimateFrom !== "sales" && c.estimateFrom !== "ai")) return null;
+  const e = c.estimate; if (!e || c.estimateFrom !== "sales") return null;
   if (num(e.value) != null) return num(e.value);
   if (num(e.low)!=null && num(e.high)!=null) return (num(e.low)+num(e.high))/2;
   return null;
@@ -671,7 +671,7 @@ const cardValue = c => num(c.myValue) ?? estValue(c);
 const cardGain = c => { const v = cardValue(c), p = num(c.paid); return (v!=null && p!=null) ? v - p : null; };
 function valueLabel(c){
   if (num(c.myValue) != null) return "Your value";
-  if (c.estimateFrom === "sales" || c.estimateFrom === "ai") return "Estimated value";
+  if (c.estimateFrom === "sales") return "Last sold";
   if (c.pricedAt) return "No sales found";
   return "No value yet";
 }
@@ -738,10 +738,11 @@ function soldButtons(c){
 }
 function estimateStatus(c, canUpdate){
   if (c.pending) return "";
-  if (c.pricing) return `<div class="sales-empty" style="margin-top:12px">${spinner("Working out the value… this can take up to a minute.")}</div>`;
-  const why = c.estimateFrom==="sales" ? `Based on ${c.salesUsed||"recent"} recent sale${c.salesUsed===1?"":"s"}.` : c.estimateFrom==="ai" ? (c.estimateBasis||"An estimate; no recent sales were found.") : "Not estimated yet.";
+  if (c.pricing) return `<div class="sales-empty" style="margin-top:12px">${spinner("Finding the last sale… this can take up to a minute.")}</div>`;
+  const last = (c.sales||[]).find(x => x.date) || (c.sales||[])[0];
+  const why = c.estimateFrom==="sales" && last ? `Last sold${last.date?` ${fmtDate(last.date)}`:""}${last.source?` on ${last.source}`:""}.` : c.pricedAt ? "No sales found for this card." : "Not checked yet.";
   return `<p class="note" style="margin:10px 2px 0">${esc(why)}${c.pricedAt?` Updated ${esc(fmtDate(c.pricedAt))}.`:""}</p>
-    ${canUpdate?`<button type="button" class="btn ghost block" data-findsales style="margin-top:10px">${c.pricedAt?"Update estimate":"Get estimate"}</button>`:""}`;
+    ${canUpdate?`<button type="button" class="btn ghost block" data-findsales style="margin-top:10px">${c.pricedAt?"Check again":"Find last sale"}</button>`:""}`;
 }
 /* ---------- active listings ---------- */
 const actCache = {};
@@ -913,14 +914,14 @@ function render(){
 
   const need = cards.filter(c => !c.pending && !c.pricing && !c.pricedAt && (c.player || c.image));
   $("#needEst").hidden = !need.length || bulkRunning;
-  $("#needEstText").textContent = `${need.length} card${need.length===1?"":"s"} still need${need.length===1?"s":""} an estimate.`;
+  $("#needEstText").textContent = `${need.length} card${need.length===1?"":"s"} still need${need.length===1?"s":""} a last sale checked.`;
 
   $("#grid").innerHTML = list.map(c => {
     const v = cardValue(c), gn = cardGain(c);
     const badge = c.pending ? "" : c.condition==="graded" ? `<span class="gbadge">${esc(`${c.grader||""} ${c.grade||""}`.trim() || "Graded")}</span>` : `<span class="gbadge raw">RAW</span>`;
-    const sub = c.pricing ? `<small class="mut">estimating…</small>` : num(c.myValue)!=null ? `<small class="mut">your value</small>`
+    const sub = c.pricing ? `<small class="mut">checking…</small>` : num(c.myValue)!=null ? `<small class="mut">your value</small>`
       : gn!=null ? `<small class="${gn<0?"down":"up"}">${gn<0?"▼":"▲"} ${money(Math.abs(gn))}</small>`
-      : (c.estimateFrom==="sales"||c.estimateFrom==="ai") ? `<small class="mut">estimate</small>` : c.pending ? "" : `<small class="mut">${c.pricedAt?"no sales found":"no value yet"}</small>`;
+      : c.estimateFrom==="sales" ? `<small class="mut">last sold</small>` : c.pending ? "" : `<small class="mut">${c.pricedAt?"no sales found":"no value yet"}</small>`;
     return `<button class="slab" data-open="${c.id}">
       <span class="pic">${c.image?`<img src="${c.image}" alt="" loading="lazy">`:"No photo"}</span>
       <span class="mid"><span class="who">${c.pending?`<span class="pending"><span class="spin"></span>Identifying…</span>`:esc(c.player||"Unknown card")}</span><span class="yr">${esc([c.year,c.set].filter(Boolean).join(" "))}${c.variant?` · ${esc(c.variant)}`:""}</span>${badge}</span>
@@ -1130,8 +1131,7 @@ function applyResult(card, r){
 function applySales(card, p){
   const out = {...card, sales: p.sales || [], salesUsed: p.used || 0, salesNote: p.note || "", pricedAt: today()};
   if (p.average != null) { out.estimate = { value:p.average, low:p.low, high:p.high }; out.estimateFrom = "sales"; delete out.estimateBasis; }
-  else if (p.estimate && p.estimate.value != null) { out.estimate = { value:p.estimate.value, low:p.estimate.low, high:p.estimate.high }; out.estimateFrom = "ai"; out.estimateBasis = p.estimate.basis || ""; }
-  else if (out.estimateFrom !== "sales") { delete out.estimate; delete out.estimateFrom; }
+  else if (out.estimateFrom !== "sales") { delete out.estimate; delete out.estimateFrom; delete out.estimateBasis; }
   delete out.pricing;
   return out;
 }
@@ -1232,7 +1232,7 @@ $("#editForm").addEventListener("submit", async e => {
     const c = latest(id);
     if (c && c.player && num(c.myValue)==null && (job || !c.pricedAt || detailsChanged)) {
       const done = await priceCard(id);
-      toast(estValue(done)!=null ? `${done.player||"Card"}: estimated ${money(estValue(done))}` : `${done?.player||"Card"} saved.`);
+      toast(estValue(done)!=null ? `${done.player||"Card"}: last sold ${money(estValue(done))}` : `${done?.player||"Card"} saved. No sales found.`);
     }
   } catch (err) {
     const now = latest(id); if (now?.pending) { const out = {...now, scanFailed:true}; delete out.pending; await putCard(out).catch(()=>{}); }
@@ -1255,7 +1255,7 @@ $("#needEstBtn").addEventListener("click", async () => {
       await priceCard(c.id);
     } catch (err) { if (err instanceof ScanError && /log in|credits|key|turned off|missing/i.test(err.message)) { toast(err.message); break; } }
   }
-  bulkRunning = false; render(); toast("Done estimating");
+  bulkRunning = false; render(); toast("Done");
 });
 
 /* ---------- detail ---------- */
@@ -1313,7 +1313,7 @@ $("#detailDlg").addEventListener("click", async e => {
   if (e.target.closest("[data-clearval]")) { const out = {...c}; delete out.myValue; await putCard(out); toast("Using recent sales again"); return; }
   if (e.target.closest("[data-backbtn]")) { $("#dBack").click(); return; }
   if (e.target.closest("[data-findsales]")) {
-    try { const done = await priceCard(c.id); toast(estValue(done)!=null ? `Estimated value: ${money(estValue(done))}` : "Couldn’t estimate this card. Try again."); }
+    try { const done = await priceCard(c.id); toast(estValue(done)!=null ? `Last sold: ${money(estValue(done))}` : "No sales found for this card."); }
     catch (err) { setStatus($("#dStatus"), friendly(err), true); }
   }
 });
