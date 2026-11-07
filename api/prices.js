@@ -322,6 +322,7 @@ module.exports = async (req, res) => {
   if (!card.query || typeof card.query !== "string" || card.query.length > 300) {
     return res.status(400).json({ error: "Not enough card details to look up sales." });
   }
+  if (body.estimateOnly) return estimateLookup(card, today, ANTHROPIC_API_KEY, res);
   if (body.allGrades) return allGradesLookup(card, today, ANTHROPIC_API_KEY, res);
   if (body.active) return activeLookup(card, ANTHROPIC_API_KEY, res);
 
@@ -658,4 +659,24 @@ async function activeLookup(card, key, res) {
   keep.sort((a, b) => a.price - b.price);
   return res.status(200).json({ listings: keep.slice(0, 25), searched: q,
     note: keep.length ? "" : `No active eBay listings of this exact card right now. eBay search words: ${q}` });
+}
+
+
+// ---------- "Estimated value": quick value with no ScraperAPI ----------
+// Averages the newest recent sales the web search can find; if there are none,
+// falls back to an estimate. The card page links to eBay sold/active for checking.
+async function estimateLookup(card, today, key, res) {
+  const within = (p, ms, fb) => Promise.race([p, new Promise(r => setTimeout(() => r(fb), ms))]);
+  const q = card.query.replace(/\b\d{6,}\b/g, " ").replace(/\s+/g, " ").trim();
+  const [web, est] = await Promise.all([
+    within(webSearchLookup({ ...card, query: q }, today, key), 90000, { sales: [] }),
+    within(aiEstimate({ ...card, query: q }, today, key), 60000, null),
+  ]);
+  const sum = summarize(web.sales || [], today, "");
+  // Only trust sales from roughly the last year for the estimate.
+  const fresh = (sum.sales || []).slice(0, sum.used).every(s => s.date && (Date.parse(today) - Date.parse(s.date)) / 86400000 <= 365);
+  if (sum.average != null && fresh) {
+    return res.status(200).json({ ...sum, note: "" });
+  }
+  return res.status(200).json({ sales: [], average: null, used: 0, note: "", estimate: est || (sum.average != null ? { value: Math.round(sum.average), low: sum.low, high: sum.high, basis: "Based on older sales." } : null) });
 }
