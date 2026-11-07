@@ -94,6 +94,17 @@ a{color:inherit}
 .status{font-size:14px;color:var(--muted);min-height:20px;margin-top:8px}
 .status.err{color:var(--down)}
 
+/* summary */
+.summary{display:flex;justify-content:space-between;align-items:flex-end;gap:24px;flex-wrap:wrap;margin:28px 0 6px;padding:26px 28px;border-radius:24px;background:radial-gradient(600px 240px at 0% 0%,var(--glow),transparent 70%),var(--surface);border:1px solid var(--line)}
+.summary .lbl{font-weight:700;color:var(--muted);font-size:14px}
+.summary .total{font-size:clamp(44px,7vw,84px);margin:6px 0 12px}
+.sum-stats{display:flex;gap:10px}
+.sum-stats div{background:var(--surface2);border-radius:16px;padding:12px 16px;min-width:88px}
+.sum-stats b{display:block;font-family:var(--display);font-weight:700;font-size:26px;line-height:1.1}
+.sum-stats small{color:var(--muted);font-weight:700;font-size:12.5px}
+.modes{max-width:360px;margin:20px 0 0}
+.certbox label{display:block;font-size:13.5px;font-weight:700;margin-bottom:6px;color:var(--muted)}
+.certbox .certrow{grid-template-columns:auto 1fr}
 /* showcase hero */
 .hero{position:relative;padding:40px 0 18px;overflow:hidden}
 .hero::before{content:"";position:absolute;inset:-30% -20% auto 30%;height:620px;background:radial-gradient(closest-side,var(--glow),transparent);pointer-events:none;transition:background .6s}
@@ -139,12 +150,13 @@ h2.sec{font-family:var(--display);font-weight:800;font-size:clamp(24px,3.6vw,34p
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:20px;margin-bottom:60px}
 .tile{--mx:50%;--my:50%;position:relative;border:0;padding:0;cursor:pointer;border-radius:16px;overflow:hidden;background:var(--surface2);aspect-ratio:5/7;text-align:left;box-shadow:0 1px 0 var(--line);transition:transform .18s ease,box-shadow .18s ease}
-.tile img{width:100%;height:100%;object-fit:cover}
+.tile .timg{position:absolute;inset:0}
+.tile .timg img{width:100%;height:100%;object-fit:cover}
 .tile .noimg{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-weight:700;font-size:13px}
 .tile::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.3),transparent 45%);opacity:0;transition:opacity .2s;pointer-events:none}
 .tile:hover{transform:translateY(-4px);box-shadow:0 18px 40px var(--glow)}
 .tile:hover::after{opacity:1}
-.tile .shade{position:absolute;inset:auto 0 0 0;padding:44px 12px 12px;background:linear-gradient(to top,rgba(5,6,9,.92),rgba(5,6,9,.6) 55%,transparent);color:#F2F4F8}
+.tile .shade{display:block;position:absolute;inset:auto 0 0 0;padding:44px 12px 12px;background:linear-gradient(to top,rgba(5,6,9,.92),rgba(5,6,9,.6) 55%,transparent);color:#F2F4F8}
 .tile .who{font-family:var(--display);font-weight:700;font-size:15px;line-height:1.15;letter-spacing:-.01em}
 .tile .meta{font-size:12px;color:#B9C0CC;margin-top:3px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
 .tile .val{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px}
@@ -179,6 +191,12 @@ h2.sec{font-family:var(--display);font-weight:800;font-size:clamp(24px,3.6vw,34p
 .scanner .beam{position:absolute;left:8%;right:8%;height:3px;background:var(--accent);box-shadow:0 0 18px var(--accent);top:10%;display:none;z-index:3;border-radius:2px}
 .scanner.busy .beam{display:block;animation:beam 1.4s ease-in-out infinite alternate}
 @keyframes beam{to{top:88%}}
+.or{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:13px;font-weight:700;margin:16px 0 10px}
+.or::before,.or::after{content:"";flex:1;height:1px;background:var(--line)}
+.certrow{display:grid;grid-template-columns:auto 1fr auto;gap:8px}
+.certrow select{width:auto;padding:10px 8px}
+.certrow input{padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);width:100%;min-height:46px;font-size:16px;min-width:0}
+.certrow input:focus{border-color:var(--accent);outline:none}
 .scan-btns{display:flex;gap:10px;margin-top:12px}
 .scan-btns .btn{flex:1}
 .panel{background:var(--surface);border-radius:20px;padding:24px;border:1px solid var(--line)}
@@ -282,11 +300,29 @@ footer.foot a{text-decoration:none;font-weight:700}
   .total{margin:4px 0 12px}
   .mini{gap:22px;margin-top:20px}
   .mini div b{font-size:22px}
-  .grid{grid-template-columns:repeat(2,1fr);gap:12px}
-  .tile{border-radius:14px}
-  .tile .shade{padding:34px 10px 10px}
-  .tile .who{font-size:13px}
-  .tile .val b{font-size:15px}
+  .summary{margin:16px 0 4px;padding:20px;border-radius:20px;gap:16px}
+  .summary .total{font-size:44px;margin:4px 0 10px}
+  .sum-stats{width:100%}
+  .sum-stats div{flex:1;min-width:0;padding:10px 12px}
+  .sum-stats b{font-size:22px}
+  .sec-head{margin:26px 0 12px}
+  .grid{grid-template-columns:1fr;gap:10px}
+  .tile{aspect-ratio:auto;display:grid;grid-template-columns:72px 1fr;gap:14px;align-items:center;padding:10px;border-radius:16px;background:var(--surface);border:1px solid var(--line);box-shadow:none}
+  .tile:hover{transform:none;box-shadow:none}
+  .tile::after{display:none}
+  .tile .timg{position:relative;inset:auto;width:72px;aspect-ratio:5/7;border-radius:10px;overflow:hidden;background:var(--surface2)}
+  .tile .noimg{font-size:10px;text-align:center}
+  .tile .badge{top:auto;bottom:4px;left:4px;font-size:10px;padding:3px 6px;border-radius:6px}
+  .tile .shade{position:static;padding:0;background:none;color:var(--ink);min-width:0}
+  .tile .who{font-size:15px}
+  .tile .meta{color:var(--muted);-webkit-line-clamp:2}
+  .tile .val{margin-top:6px}
+  .tile .val b{font-size:18px}
+  .tile .val small{color:var(--muted)}
+  .tile .pending{color:var(--muted)}
+  .pc-hero h1{font-size:40px}
+  .scanner{max-width:250px}
+  .toolbar .search{flex-basis:100%}
   .toolbar select{flex:1}
   .how{grid-template-columns:1fr}
   .form{grid-template-columns:1fr 1fr}
@@ -344,25 +380,24 @@ footer.foot a{text-decoration:none;font-weight:700}
 
 <main>
 <section id="view-vault">
-  <div class="hero"><div class="wrap">
-    <div class="hero-grid">
-      <div>
-        <div class="eyebrowless">Collection value</div>
+  <div class="wrap">
+    <div class="summary">
+      <div class="sum-main">
+        <div class="lbl">Collection value</div>
         <div class="total" id="sValue">$0</div>
         <span class="gain" id="sGain" hidden></span>
-        <div class="mini">
-          <div><b id="sCount">0</b><small>Cards</small></div>
-          <div><b id="sGraded">0</b><small>Graded</small></div>
-          <div><b id="sRaw">0</b><small>Raw</small></div>
-        </div>
       </div>
-      <div class="show" id="show"></div>
+      <div class="sum-stats">
+        <div><b id="sCount">0</b><small>Cards</small></div>
+        <div><b id="sGraded">0</b><small>Graded</small></div>
+        <div><b id="sRaw">0</b><small>Raw</small></div>
+      </div>
     </div>
     <div class="alert" id="needEst" hidden>
       <p id="needEstText"></p>
       <button class="btn primary" id="needEstBtn">Find sales</button>
     </div>
-  </div></div>
+  </div>
 
   <div class="wrap">
     <div class="sec-head"><h2 class="sec">Your cards</h2><span class="note" id="showing"></span></div>
@@ -388,11 +423,16 @@ footer.foot a{text-decoration:none;font-weight:700}
 <section id="view-price-check" hidden>
   <div class="wrap">
     <div class="pc-hero">
-      <h1>Scan any card. <span>See what it sells for.</span></h1>
-      <p>Snap the front of a card or slab. We identify it and pull its most recent sales.</p>
+      <h1>Price check</h1>
+      <p>Scan a card or type a slab’s cert number. We find its last sales and average the newest 3.</p>
+    </div>
+    <div class="seg modes" role="tablist" aria-label="How to look up">
+      <button type="button" data-mode="photo" aria-pressed="true">Photo</button>
+      <button type="button" data-mode="cert" aria-pressed="false">Cert number</button>
     </div>
     <div class="check">
       <div>
+        <div id="modePhoto">
         <div class="scanner" id="scanner">
           <div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
           <div class="beam" aria-hidden="true"></div>
@@ -407,6 +447,15 @@ footer.foot a{text-decoration:none;font-weight:700}
         </div>
         <input type="file" id="checkBack" accept="image/*" hidden>
         <button class="btn ghost" id="checkBackBtn" style="width:100%;margin-top:10px" hidden>Add back of card (finds year &amp; details)</button>
+        </div>
+        <form class="certbox" id="certForm" hidden>
+          <label for="certInput">Cert number from the slab label</label>
+          <div class="certrow">
+          <select id="certGrader" aria-label="Grading company"><option>PSA</option><option>BGS</option><option>SGC</option><option>CGC</option></select>
+          <input id="certInput" inputmode="numeric" placeholder="Cert #, e.g. 78451234" aria-label="Cert number" autocomplete="off">
+          </div>
+          <button class="btn primary" type="submit" style="width:100%;margin-top:10px">Look up card</button>
+        </form>
         <div class="status" id="scanStatus"></div>
       </div>
       <div class="panel" id="checkPanel">
@@ -415,7 +464,7 @@ footer.foot a{text-decoration:none;font-weight:700}
           <div class="how">
             <div><b>Snap</b><span class="note">Photo of the front of the card or the slab.</span></div>
             <div><b>Identify</b><span class="note">Year, set, number, parallel and grade, read for you.</span></div>
-            <div><b>Price</b><span class="note">Its latest sales, and the average of the newest few.</span></div>
+            <div><b>Price</b><span class="note">Its last eBay and Fanatics Collect sales, and the average of the newest 3.</span></div>
           </div>
         </div>
       </div>
@@ -425,7 +474,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault</span>
+  <span>© 2026 Card Vault · v3</span>
   <nav><a href="#vault">My Vault</a><a href="#price-check">Price Check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -448,6 +497,13 @@ footer.foot a{text-decoration:none;font-weight:700}
         <input type="file" id="editBack" accept="image/*" hidden>
         <button type="button" class="btn ghost" id="editBackBtn" style="width:100%;margin-top:8px" hidden>Add back of card</button>
         <div class="status" id="editStatus"></div>
+      </div>
+    </div>
+    <div class="field" style="margin-bottom:14px"><label for="editCertInput">Graded card? Look it up by cert number</label>
+      <div class="certrow">
+        <select id="editCertGrader" aria-label="Grading company"><option>PSA</option><option>BGS</option><option>SGC</option><option>CGC</option></select>
+        <input id="editCertInput" inputmode="numeric" placeholder="e.g. 78451234" autocomplete="off">
+        <button type="button" class="btn ghost" id="editCertBtn">Look up</button>
       </div>
     </div>
     <div class="field paid"><label for="f_paid">What I paid</label><input id="f_paid" inputmode="decimal" placeholder="$0.00"></div>
@@ -590,7 +646,7 @@ $$("[data-logout]").forEach(b => b.addEventListener("click", async () => { await
 
 /* ---------- values ---------- */
 function estValue(c){
-  const e = c.estimate; if (!e) return null;
+  const e = c.estimate; if (!e || c.estimateFrom !== "sales") return null;
   if (num(e.value) != null) return num(e.value);
   if (num(e.low)!=null && num(e.high)!=null) return (num(e.low)+num(e.high))/2;
   return null;
@@ -600,7 +656,7 @@ const cardGain = c => { const v = cardValue(c), p = num(c.paid); return (v!=null
 function valueLabel(c){
   if (num(c.myValue) != null) return "Your value";
   if (c.estimateFrom === "sales") return `Avg of last ${c.salesUsed || ""} sale${c.salesUsed===1?"":"s"}`.replace("  "," ");
-  if (estValue(c) != null) return "Rough estimate";
+  if (c.pricedAt) return "No sales found";
   return "No value yet";
 }
 function autoQuery(c){
@@ -639,7 +695,7 @@ document.addEventListener("input", e => {
 });
 function statsHTML(c){
   const e = c.estimate || {}, v = cardValue(c), paid = num(c.paid), g = cardGain(c);
-  const range = (num(e.low)!=null && num(e.high)!=null && num(c.myValue)==null) ? `${kmoney(num(e.low))}–${kmoney(num(e.high))}` : "—";
+  const range = (c.estimateFrom==="sales" && num(e.low)!=null && num(e.high)!=null && num(c.myValue)==null) ? `${kmoney(num(e.low))}–${kmoney(num(e.high))}` : "—";
   return `<div class="stats">
     <div class="stat hot"><small>${esc(valueLabel(c))}</small><b>${money(v)}</b></div>
     <div class="stat"><small>Range</small><b>${range}</b></div>
@@ -724,13 +780,6 @@ function render(){
   $("#empty").hidden = cards.length > 0;
   $("#noMatch").hidden = !(cards.length && !list.length);
 
-  const tops = [...cards].filter(c=>c.image).sort((a,b)=>(cardValue(b)||0)-(cardValue(a)||0)).slice(0,3), top = tops[0];
-  $("#show").innerHTML = top
-    ? `<div class="halo"></div>${tops.slice(1).map((c,i)=>`<button class="show-back b${i}" data-open="${c.id}" aria-label="Open ${esc(c.player||"card")}" tabindex="-1"><img src="${c.image}" alt=""></button>`).join("")}<button class="show-card" data-open="${top.id}" aria-label="Open ${esc(top.player||"top card")}"><img src="${top.image}" alt=""></button>
-       <div class="show-cap">Top card · <b>${money(cardValue(top))}</b></div>`
-    : `<div class="halo"></div><div class="show-empty">Your most valuable card shows up here</div>`;
-  if (top) setAccentFrom(top.image);
-
   const need = cards.filter(c => !c.pending && !c.pricing && !c.pricedAt && (c.player || c.image));
   $("#needEst").hidden = !need.length || bulkRunning;
   $("#needEstText").textContent = `${need.length} card${need.length===1?"":"s"} still need${need.length===1?"s":""} recent sales.`;
@@ -738,12 +787,11 @@ function render(){
   $("#grid").innerHTML = list.map(c => {
     const v = cardValue(c);
     return `<button class="tile" data-open="${c.id}">
-      ${c.image?`<img src="${c.image}" alt="" loading="lazy">`:`<span class="noimg">No photo</span>`}
-      ${gradeBadge(c)}
+      <span class="timg">${c.image?`<img src="${c.image}" alt="" loading="lazy">`:`<span class="noimg">No photo</span>`}${gradeBadge(c)}</span>
       <span class="shade">
         <span class="who" style="display:block">${c.pending?`<span class="pending">${'<span class="spin"></span>'}Identifying…</span>`:esc(c.player||"Unknown card")}</span>
         <span class="meta">${esc([c.year,c.set].filter(Boolean).join(" "))}${c.variant?` · ${esc(c.variant)}`:""}</span>
-        <span class="val"><b>${v==null?"":money(v)}</b><small>${c.pricing?"finding sales":num(c.myValue)!=null?"your value":c.estimateFrom==="sales"?"recent sales":v!=null?"estimate":c.pending?"":"no sales yet"}</small></span>
+        <span class="val"><b>${v==null?"":money(v)}</b><small>${c.pricing?"finding sales…":num(c.myValue)!=null?"your value":c.estimateFrom==="sales"?`avg of last ${c.salesUsed}`:c.pending?"":c.pricedAt?"no sales found":"tap Find sales"}</small></span>
       </span>
     </button>`;
   }).join("");
@@ -768,7 +816,6 @@ function tiltify(el){
   });
   el.addEventListener("pointerleave", () => { el.style.setProperty("--rx","0deg"); el.style.setProperty("--ry","0deg"); });
 }
-$("#show").addEventListener("pointerover", e => { const c = e.target.closest(".show-card"); if (c && !c._t) { c._t = 1; tiltify(c); } });
 
 /* ---------- images ---------- */
 function shrink(file, max=900, q=.8){
@@ -807,13 +854,16 @@ async function api(path, body){
   try { r = await fetch(path, { method:"POST", headers:{ "Content-Type":"application/json", Authorization:"Bearer " + session.access_token }, body: JSON.stringify(body) }); }
   catch { throw new ScanError("Couldn’t reach the server. Check your connection and try again."); }
   const out = await r.json().catch(() => null);
-  if (r.status === 404 && !out) throw new ScanError("The server part of the site is missing. Make sure the api folder (with scan.js and prices.js) is on GitHub.");
+  if (r.status === 404 && !out?.error) throw new ScanError("The server part of the site is missing. On GitHub, the api folder needs scan.js, prices.js and cert.js inside it.");
   if (r.status === 504 || (!out && r.status >= 500)) throw new ScanError("That took too long. Try again.");
   if (!r.ok || !out || out.error) throw new ScanError(out?.error || `Something went wrong (code ${r.status}).`);
   return out;
 }
 async function identify(blob, backBlob){
   return api("/api/scan", { front: await blobToB64(blob), back: backBlob ? await blobToB64(backBlob) : null });
+}
+async function certLookup(cert, grader){
+  return api("/api/cert", { cert, grader });
 }
 async function findSales(c){
   return api("/api/prices", { card: { query: searchQuery(c), condition: c.condition, grader: c.grader, grade: c.grade, rawCondition: c.rawCondition } });
@@ -827,13 +877,13 @@ function applyResult(card, r){
   if (r?.description) out.description = String(r.description);
   if (r?.confidence) out.confidence = String(r.confidence);
   if (r?.searchQuery) out.searchQ = String(r.searchQuery).replace(/#/g,"").trim();
-  if (r?.estimate && out.estimateFrom !== "sales") { out.estimate = { value:num(r.estimate.value), low:num(r.estimate.low), high:num(r.estimate.high) }; out.estimateFrom = "ai"; }
   delete out.pending; delete out.scanFailed;
   return out;
 }
 function applySales(card, p){
   const out = {...card, sales: p.sales || [], salesUsed: p.used || 0, salesNote: p.note || "", pricedAt: today()};
   if (p.average != null) { out.estimate = { value:p.average, low:p.low, high:p.high }; out.estimateFrom = "sales"; }
+  else if (out.estimateFrom !== "sales") { delete out.estimate; delete out.estimateFrom; }
   delete out.pricing;
   return out;
 }
@@ -876,6 +926,7 @@ function openEdit(card, title){
   $("#moreBox").open = !!card && !title;
   editBlob = null; if (editImage) imageBlob(editImage).then(b => { editBlob = b; }).catch(() => {});
   $("#editBackBtn").hidden = !editImage;
+  $("#editCertInput").value = "";
   $("#editDlg").showModal();
   if (!card) setTimeout(() => F("paid").focus({preventScroll:true}), 50);
 }
@@ -895,10 +946,17 @@ async function onEditPhoto(e){
   startScan(r.blob, null, false);
 }
 function startScan(front, back, isBack){
+  runEditJob(identify(front, back), isBack ? "Reading front and back…" : "Reading the card…");
+}
+$("#editCertBtn").onclick = () => {
+  const cert = $("#editCertInput").value.trim();
+  if (!cert) return setStatus($("#editStatus"), "Type the cert number from the slab label.", true);
+  runEditJob(certLookup(cert, $("#editCertGrader").value), `Looking up ${esc($("#editCertGrader").value)} cert ${esc(cert)}…`);
+};
+function runEditJob(job, label){
   const st = $("#editStatus");
-  setStatus(st, spinner(`${isBack?"Reading front and back…":"Reading the card…"} You can save now.`));
+  setStatus(st, spinner(`${label} You can save now.`));
   const sessionId = editing.id;
-  const job = identify(front, back);
   scanJob = job;
   job.then(res => {
     if (!$("#editDlg").open || editing.id !== sessionId || scanJob !== job) return;
@@ -1061,6 +1119,31 @@ async function runCheck(file, backBlob){
   }
   scanner.classList.remove("busy");
 }
+$$(".modes [data-mode]").forEach(b => b.addEventListener("click", () => {
+  const m = b.dataset.mode;
+  $$(".modes [data-mode]").forEach(x => x.setAttribute("aria-pressed", x === b));
+  $("#modePhoto").hidden = m !== "photo"; $("#certForm").hidden = m !== "cert";
+  if (m === "cert") setTimeout(() => $("#certInput").focus(), 50);
+}));
+$("#certForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  const cert = $("#certInput").value.trim(), grader = $("#certGrader").value, st = $("#scanStatus");
+  if (!cert) return setStatus(st, "Type the cert number from the slab label.", true);
+  setStatus(st, "");
+  $("#checkResult").innerHTML = `<h3>Looking up</h3><p>${spinner(`Finding ${esc(grader)} cert ${esc(cert)}… this can take up to a minute.`)}</p>`;
+  if (matchMedia("(max-width:860px)").matches) $("#checkPanel").scrollIntoView({behavior: reduce?"auto":"smooth", block:"start"});
+  try {
+    const r = await certLookup(cert, grader);
+    check = applyResult({id:newId(), added:Date.now(), image:null}, r);
+    check.pricing = true; renderCheck();
+    try { check = applySales(check, await findSales(check)); }
+    catch (err) { delete check.pricing; setStatus(st, friendly(err), true); }
+    renderCheck();
+  } catch (err) {
+    setStatus(st, friendly(err), true);
+    $("#checkResult").innerHTML = `<h3>Couldn’t find it</h3><p>${esc(friendly(err))}</p>`;
+  }
+});
 function renderCheck(){
   const c = check;
   const g = c.condition==="graded" ? `${c.grader||""} ${c.grade||""}`.trim() : `Raw${c.rawCondition?" · "+c.rawCondition:""}`;
