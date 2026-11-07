@@ -1,0 +1,1087 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0B0C10">
+<title>Card Vault</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='6' y='2' width='20' height='28' rx='4' fill='%230B0C10'/%3E%3Ccircle cx='16' cy='16' r='6' fill='none' stroke='%236EC1FF' stroke-width='2.5'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@500;700;800&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  --ah:205; --as:92%;
+  --bg:#0B0C10; --bg2:#101217; --surface:#15181E; --surface2:#1E222A; --line:#2A2F39;
+  --ink:#F2F4F8; --muted:#8E96A6; --up:#43D18A; --down:#FF6B6B;
+  --accent:hsl(var(--ah) var(--as) 64%); --accent-ink:#06090F;
+  --glow:hsla(var(--ah), var(--as), 60%, .35);
+  --shadow:0 18px 50px rgba(0,0,0,.5);
+  --display:"Unbounded","Arial Black","Segoe UI",sans-serif;
+  --body:"Manrope","Segoe UI",Helvetica,Arial,sans-serif;
+  --nav-h:0px;
+  color-scheme:dark; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){
+    --bg:#F3F4F7; --bg2:#EBEDF2; --surface:#FFFFFF; --surface2:#F0F2F6; --line:#DCE0E7;
+    --ink:#0E1117; --muted:#5A6272; --up:#12804A; --down:#C93030;
+    --accent:hsl(var(--ah) var(--as) 42%); --accent-ink:#FFFFFF;
+    --glow:hsla(var(--ah), var(--as), 50%, .25);
+    --shadow:0 14px 40px rgba(14,17,23,.14);
+    color-scheme:light;
+  }
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 70px);-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--body);font-size:16px;line-height:1.5;-webkit-tap-highlight-color:transparent;overflow-x:hidden}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:var(--bg)}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+img{max-width:100%;display:block}
+a{color:inherit}
+.wrap{max-width:1180px;margin:0 auto;padding:0 22px}
+.display{font-family:var(--display);letter-spacing:-.02em}
+.muted{color:var(--muted)}
+.note{color:var(--muted);font-size:14px}
+[hidden]{display:none !important}
+
+/* buttons */
+.btn{border:0;background:var(--surface2);color:var(--ink);padding:12px 20px;border-radius:12px;font-weight:800;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:46px;text-decoration:none;transition:transform .12s ease,filter .12s ease}
+.btn:active{transform:scale(.98)}
+.btn.primary{background:var(--accent);color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.ghost{background:transparent;border:1.5px solid var(--line)}
+.btn.ghost:hover{border-color:var(--accent)}
+.btn.danger{background:transparent;color:var(--down);border:1.5px solid color-mix(in srgb,var(--down) 60%,transparent)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.btn svg{width:20px;height:20px;flex:none}
+.linkbtn{background:none;border:0;color:var(--muted);font-weight:700;cursor:pointer;padding:6px 0;font-size:14px}
+.linkbtn:hover{color:var(--ink)}
+
+/* header */
+.site{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.site .wrap{display:flex;align-items:center;gap:26px;height:66px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo svg{width:30px;height:30px}
+.logo b{font-family:var(--display);font-weight:800;font-size:17px;letter-spacing:.06em}
+.toplinks{display:flex;gap:6px}
+.toplinks a{text-decoration:none;font-weight:700;padding:8px 14px;border-radius:10px;color:var(--muted)}
+.toplinks a:hover{color:var(--ink)}
+.toplinks a[aria-current="page"]{color:var(--ink);background:var(--surface2)}
+.site .right{margin-left:auto;display:flex;gap:10px;align-items:center}
+
+/* auth */
+.auth{position:fixed;inset:0;z-index:70;background:radial-gradient(1200px 600px at 80% -10%,var(--glow),transparent 60%),var(--bg);display:grid;place-items:center;padding:24px;overflow:auto}
+.auth-card{width:100%;max-width:420px;display:grid;gap:14px}
+.auth-card h1{font-family:var(--display);font-weight:800;font-size:clamp(34px,8vw,46px);line-height:1;margin:14px 0 0;letter-spacing:-.03em}
+.auth-card h1 span{color:var(--accent)}
+.auth-card p{margin:0}
+.auth-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px}
+.auth-stack{position:relative;height:150px;margin-bottom:6px}
+.auth-stack i{position:absolute;bottom:0;width:86px;aspect-ratio:5/7;border-radius:10px;border:1.5px solid var(--line);background:linear-gradient(160deg,var(--surface2),var(--surface))}
+.auth-stack i:nth-child(1){left:0;transform:rotate(-10deg)}
+.auth-stack i:nth-child(2){left:62px;transform:rotate(-2deg);border-color:var(--accent);box-shadow:0 0 40px var(--glow)}
+.auth-stack i:nth-child(3){left:124px;transform:rotate(7deg)}
+
+/* fields */
+.field label{display:block;font-size:13.5px;font-weight:700;margin-bottom:6px;color:var(--muted)}
+.field input,.field textarea,.field select,select{width:100%;padding:13px 14px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);font-size:16px;min-height:48px}
+.field input:focus,.field textarea:focus,select:focus{border-color:var(--accent);outline:none}
+.status{font-size:14px;color:var(--muted);min-height:20px;margin-top:8px}
+.status.err{color:var(--down)}
+
+/* showcase hero */
+.hero{position:relative;padding:40px 0 18px;overflow:hidden}
+.hero::before{content:"";position:absolute;inset:-30% -20% auto 30%;height:620px;background:radial-gradient(closest-side,var(--glow),transparent);pointer-events:none;transition:background .6s}
+.hero-grid{position:relative;display:grid;grid-template-columns:1.25fr 1fr;gap:36px;align-items:center}
+.eyebrowless{font-weight:700;color:var(--muted)}
+.total{font-family:var(--display);font-weight:800;font-size:clamp(46px,8.4vw,104px);line-height:.95;letter-spacing:-.045em;margin:8px 0 14px}
+.gain{display:inline-flex;align-items:center;gap:6px;font-weight:800;padding:7px 12px;border-radius:999px;background:var(--surface2);font-size:14.5px}
+.gain.up{color:var(--up)} .gain.down{color:var(--down)}
+.mini{display:flex;gap:28px;margin-top:26px;flex-wrap:wrap}
+.mini div b{display:block;font-family:var(--display);font-weight:700;font-size:28px;line-height:1.1}
+.mini div small{color:var(--muted);font-weight:700;font-size:13px}
+.show{position:relative;display:grid;place-items:center;min-height:360px}
+.show .halo{position:absolute;width:78%;aspect-ratio:1;border-radius:50%;background:radial-gradient(closest-side,var(--glow),transparent 70%);filter:blur(10px)}
+.show-card{z-index:2;--rx:0deg;--ry:0deg;--mx:50%;--my:50%;position:relative;width:min(250px,64vw);aspect-ratio:5/7;border-radius:16px;transform:perspective(900px) rotateX(var(--rx)) rotateY(var(--ry)) rotate(-3deg);transition:transform .2s ease-out;box-shadow:var(--shadow);cursor:pointer;border:0;padding:0;background:var(--surface2);overflow:hidden}
+.show-card img{width:100%;height:100%;object-fit:cover}
+.show-card::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.35),transparent 45%);mix-blend-mode:overlay;pointer-events:none}
+.show-back{position:absolute;width:min(210px,52vw);aspect-ratio:5/7;border-radius:14px;overflow:hidden;border:0;padding:0;cursor:pointer;box-shadow:var(--shadow);opacity:.75;filter:saturate(.8);transition:transform .3s ease,opacity .3s}
+.show-back img{width:100%;height:100%;object-fit:cover}
+.show-back.b0{transform:translate(-62%,4%) rotate(-12deg)}
+.show-back.b1{transform:translate(62%,6%) rotate(11deg)}
+.show:hover .show-back.b0{transform:translate(-70%,2%) rotate(-15deg);opacity:.9}
+.show:hover .show-back.b1{transform:translate(70%,4%) rotate(14deg);opacity:.9}
+.show-cap{position:absolute;z-index:3;bottom:-6px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 14px;white-space:nowrap;font-weight:700;font-size:14px;box-shadow:var(--shadow)}
+.show-cap b{color:var(--accent)}
+.show-empty{width:min(220px,58vw);aspect-ratio:5/7;border-radius:16px;border:2px dashed var(--line);display:grid;place-items:center;text-align:center;color:var(--muted);padding:20px;font-weight:700}
+
+.alert{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--surface);border:1.5px solid var(--accent);border-radius:14px;padding:12px 16px;margin:18px 0 0}
+.alert p{margin:0;font-weight:700}
+
+/* list */
+.sec-head{display:flex;justify-content:space-between;align-items:end;gap:12px;margin:36px 0 14px}
+h2.sec{font-family:var(--display);font-weight:800;font-size:clamp(24px,3.6vw,34px);line-height:1;margin:0;letter-spacing:-.03em}
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}
+.search{flex:1 1 280px;position:relative}
+.search svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:20px;height:20px;color:var(--muted)}
+.search input{width:100%;padding:13px 14px 13px 44px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);font-size:16px;min-height:48px}
+.search input:focus{border-color:var(--accent);outline:none}
+.toolbar select{width:auto}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 10px;scrollbar-width:none;margin-bottom:12px}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:1.5px solid var(--line);background:transparent;padding:8px 15px;border-radius:999px;font-weight:700;font-size:14px;cursor:pointer;min-height:38px;color:var(--muted)}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:20px;margin-bottom:60px}
+.tile{--mx:50%;--my:50%;position:relative;border:0;padding:0;cursor:pointer;border-radius:16px;overflow:hidden;background:var(--surface2);aspect-ratio:5/7;text-align:left;box-shadow:0 1px 0 var(--line);transition:transform .18s ease,box-shadow .18s ease}
+.tile img{width:100%;height:100%;object-fit:cover}
+.tile .noimg{position:absolute;inset:0;display:grid;place-items:center;color:var(--muted);font-weight:700;font-size:13px}
+.tile::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.3),transparent 45%);opacity:0;transition:opacity .2s;pointer-events:none}
+.tile:hover{transform:translateY(-4px);box-shadow:0 18px 40px var(--glow)}
+.tile:hover::after{opacity:1}
+.tile .shade{position:absolute;inset:auto 0 0 0;padding:44px 12px 12px;background:linear-gradient(to top,rgba(5,6,9,.92),rgba(5,6,9,.6) 55%,transparent);color:#F2F4F8}
+.tile .who{font-family:var(--display);font-weight:700;font-size:15px;line-height:1.15;letter-spacing:-.01em}
+.tile .meta{font-size:12px;color:#B9C0CC;margin-top:3px;line-height:1.3;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.tile .val{display:flex;justify-content:space-between;align-items:baseline;margin-top:8px}
+.tile .val b{font-family:var(--display);font-weight:700;font-size:18px}
+.tile .val small{font-size:11px;color:#B9C0CC;font-weight:700}
+.badge{position:absolute;top:10px;left:10px;font-weight:800;font-size:12px;padding:5px 9px;border-radius:8px;background:var(--accent);color:var(--accent-ink);letter-spacing:.02em}
+.badge.raw{background:rgba(5,6,9,.7);color:#F2F4F8;border:1px solid rgba(255,255,255,.25)}
+.pending{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;color:var(--muted)}
+.tile .pending{color:#D6DAE2}
+.spin{width:12px;height:12px;border:2px solid var(--line);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.empty{border:2px dashed var(--line);border-radius:20px;padding:46px 24px;text-align:center;color:var(--muted);margin-bottom:60px}
+.empty h3{font-family:var(--display);font-weight:800;color:var(--ink);font-size:26px;margin:0 0 8px;letter-spacing:-.02em}
+.empty .btn{margin-top:12px}
+
+/* price check */
+.pc-hero{padding:40px 0 4px}
+.pc-hero h1{font-family:var(--display);font-weight:800;font-size:clamp(40px,7vw,80px);line-height:.98;margin:0;letter-spacing:-.04em}
+.pc-hero h1 span{color:var(--accent)}
+.pc-hero p{color:var(--muted);font-size:18px;max-width:34em;margin:14px 0 0}
+.check{display:grid;grid-template-columns:minmax(260px,360px) 1fr;gap:26px;margin:26px 0 60px;align-items:start}
+.scanner{position:relative;aspect-ratio:5/7;border-radius:20px;background:var(--surface);border:1.5px solid var(--line);display:grid;place-items:center;text-align:center;padding:24px;overflow:hidden;cursor:pointer}
+.scanner.over{border-color:var(--accent)}
+.scanner img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--surface2)}
+.scanner .corners{position:absolute;inset:16px;pointer-events:none;z-index:2}
+.scanner .corners i{position:absolute;width:30px;height:30px;border:3.5px solid var(--accent)}
+.scanner .corners i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-radius:10px 0 0 0}
+.scanner .corners i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-radius:0 10px 0 0}
+.scanner .corners i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-radius:0 0 0 10px}
+.scanner .corners i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 10px 0}
+.scanner .beam{position:absolute;left:8%;right:8%;height:3px;background:var(--accent);box-shadow:0 0 18px var(--accent);top:10%;display:none;z-index:3;border-radius:2px}
+.scanner.busy .beam{display:block;animation:beam 1.4s ease-in-out infinite alternate}
+@keyframes beam{to{top:88%}}
+.scan-btns{display:flex;gap:10px;margin-top:12px}
+.scan-btns .btn{flex:1}
+.panel{background:var(--surface);border-radius:20px;padding:24px;border:1px solid var(--line)}
+.panel h3{font-family:var(--display);font-weight:700;font-size:18px;margin:24px 0 12px;letter-spacing:-.01em}
+.panel h3:first-child{margin-top:0}
+.idname{font-family:var(--display);font-weight:800;font-size:clamp(26px,4.4vw,38px);line-height:1.02;letter-spacing:-.03em}
+.pills{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.pill{display:inline-block;padding:5px 10px;border-radius:8px;font-size:13px;font-weight:700;background:var(--surface2)}
+.pill.acc{background:var(--accent);color:var(--accent-ink)}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.how div{background:var(--surface2);border-radius:14px;padding:16px}
+.how b{display:block;font-family:var(--display);font-weight:700;font-size:16px;margin-bottom:4px}
+
+/* stats + sales */
+.stats{display:grid;grid-template-columns:1.3fr 1fr 1fr 1fr;gap:10px;margin:8px 0 6px}
+.stat{background:var(--surface2);border-radius:14px;padding:12px 14px;min-width:0}
+.stat small{display:block;color:var(--muted);font-size:12.5px;font-weight:700}
+.stat b{font-family:var(--display);font-weight:700;font-size:22px;line-height:1.2;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.stat b.up{color:var(--up)} .stat b.down{color:var(--down)}
+.stat.hot{background:var(--accent);color:var(--accent-ink)}
+.stat.hot small{color:inherit;opacity:.8}
+.sales{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.sales li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:11px 14px;border-top:1px solid var(--line)}
+.sales li:first-child{border-top:0}
+.sales .dot{width:9px;height:9px;border-radius:50%;background:var(--line)}
+.sales li.used .dot{background:var(--accent);box-shadow:0 0 0 4px var(--glow)}
+.sales .t{min-width:0}
+.sales .t span{display:block;font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sales .t strong{font-size:14.5px}
+.sales .p{font-family:var(--display);font-weight:700;font-size:17px;text-align:right}
+.sales a{text-decoration:none}
+.sales a:hover strong{color:var(--accent)}
+.sales-empty{border:1.5px dashed var(--line);border-radius:14px;padding:16px;color:var(--muted);font-size:14.5px}
+.links{display:flex;flex-wrap:wrap;gap:8px}
+.links a{display:inline-flex;align-items:center;min-height:42px;padding:8px 14px;border-radius:10px;background:var(--surface2);border:1.5px solid var(--line);text-decoration:none;font-weight:700;font-size:14px}
+.links a:hover{border-color:var(--accent)}
+details.diy{margin-top:14px;border:1px solid var(--line);border-radius:14px;padding:4px 14px}
+details.diy summary{cursor:pointer;font-weight:700;padding:10px 0;min-height:44px;display:flex;align-items:center;color:var(--muted)}
+details.diy[open] summary{color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.row input{padding:11px 13px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);width:100%;min-height:46px;font-size:16px}
+.xbtn{background:none;border:0;color:var(--muted);cursor:pointer;font-size:20px;min-width:42px;min-height:42px;border-radius:10px}
+.xbtn:hover{background:var(--surface2);color:var(--ink)}
+.desc{font-size:16px;line-height:1.55;margin:0;max-width:60ch;color:color-mix(in srgb,var(--ink) 86%,transparent)}
+
+/* dialogs */
+dialog{border:0;border-radius:24px;padding:0;max-width:860px;width:calc(100% - 28px);background:var(--surface);color:var(--ink);max-height:calc(100dvh - 40px);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(4,5,8,.7);backdrop-filter:blur(4px)}
+.dlg{padding:24px}
+.dlg-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:10px}
+.dlg-head h2{font-family:var(--display);font-weight:800;font-size:28px;margin:0;line-height:1.05;letter-spacing:-.03em}
+.grab{display:none}
+.form{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+.form .full{grid-column:1/-1}
+.seg{display:flex;border:1.5px solid var(--line);border-radius:12px;overflow:hidden;width:100%}
+.seg button{flex:1;border:0;background:transparent;padding:11px 14px;cursor:pointer;font-weight:800;min-height:46px;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--bg)}
+.big-photo{display:grid;grid-template-columns:120px 1fr;gap:16px;align-items:center;margin-bottom:16px}
+.thumb{width:120px;aspect-ratio:5/7;border-radius:12px;background:var(--surface2);overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:12px;text-align:center;border:1.5px dashed var(--line)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.paid input{font-size:26px;font-family:var(--display);font-weight:700;padding:10px 14px}
+details.more{border:1.5px solid var(--line);border-radius:14px;padding:4px 14px;margin-top:14px}
+details.more summary{cursor:pointer;font-weight:800;padding:10px 0;min-height:44px;display:flex;align-items:center}
+details.more .form{padding:6px 0 12px}
+.actions{display:flex;gap:10px;justify-content:flex-end;margin-top:22px;flex-wrap:wrap}
+.detail{display:grid;grid-template-columns:260px 1fr;gap:28px}
+.tilt{--rx:0deg;--ry:0deg;--mx:50%;--my:50%;perspective:900px}
+.tilt .c3d{transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .15s ease-out;border-radius:16px;position:relative;overflow:hidden;box-shadow:0 20px 50px var(--glow);aspect-ratio:5/7;background:var(--surface2)}
+.tilt .c3d img{width:100%;height:100%;object-fit:cover}
+.tilt .c3d::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.4),transparent 45%);mix-blend-mode:overlay;pointer-events:none}
+.certlink{display:inline-block;margin-top:10px;font-weight:800;color:var(--accent);text-decoration:none;font-size:14px}
+h3.sub{font-family:var(--display);font-weight:700;font-size:17px;margin:26px 0 10px;letter-spacing:-.01em;display:flex;justify-content:space-between;align-items:center;gap:10px}
+
+/* footer + tabbar + toast */
+footer.foot{border-top:1px solid var(--line);margin-top:10px;padding:28px 0 44px;color:var(--muted);font-size:14px}
+footer.foot .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+footer.foot nav{display:flex;gap:18px;align-items:center}
+footer.foot a{text-decoration:none;font-weight:700}
+.tabbar{display:none}
+.toast{position:fixed;left:50%;bottom:calc(24px + var(--nav-h) + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:12px 20px;border-radius:12px;font-weight:800;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1}
+
+@media (max-width:860px){
+  .hero-grid{grid-template-columns:1fr}
+  .show{order:-1;min-height:300px}
+  .check{grid-template-columns:1fr}
+  .scanner{max-width:340px;width:100%;margin:0 auto}
+  .detail{grid-template-columns:1fr}
+  .detail .tilt{max-width:220px;margin:0 auto;width:100%}
+  .stats{grid-template-columns:1fr 1fr}
+}
+@media (max-width:640px){
+  :root{--nav-h:76px}
+  .wrap{padding:0 16px}
+  .site .wrap{height:58px}
+  .toplinks,.site .right{display:none}
+  .hero{padding:18px 0 8px}
+  .show{min-height:270px}
+  .show-card{width:min(190px,50vw)}
+  .show-back{width:min(160px,42vw)}
+  .total{margin:4px 0 12px}
+  .mini{gap:22px;margin-top:20px}
+  .mini div b{font-size:22px}
+  .grid{grid-template-columns:repeat(2,1fr);gap:12px}
+  .tile{border-radius:14px}
+  .tile .shade{padding:34px 10px 10px}
+  .tile .who{font-size:13px}
+  .tile .val b{font-size:15px}
+  .toolbar select{flex:1}
+  .how{grid-template-columns:1fr}
+  .form{grid-template-columns:1fr 1fr}
+  main{padding-bottom:calc(var(--nav-h) + 10px)}
+  footer.foot{padding-bottom:calc(var(--nav-h) + 30px)}
+  dialog{margin:auto 0 0;width:100%;max-width:100%;border-radius:24px 24px 0 0;max-height:94dvh;padding-bottom:env(safe-area-inset-bottom,0px)}
+  .grab{display:block;width:44px;height:5px;border-radius:3px;background:var(--line);margin:0 auto 12px}
+  .dlg{padding:12px 16px 20px}
+  .dlg-head h2{font-size:24px}
+  .actions{position:sticky;bottom:0;background:var(--surface);padding:12px 0 4px;margin-top:16px}
+  .actions .btn{flex:1}
+  .tabbar{display:grid;grid-template-columns:1fr 1fr 1fr;position:fixed;left:0;right:0;bottom:0;z-index:35;background:color-mix(in srgb,var(--surface) 90%,transparent);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:6px 10px env(safe-area-inset-bottom,0px);height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
+  .tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;text-decoration:none;font-size:12px;font-weight:800;color:var(--muted);background:none;border:0;cursor:pointer}
+  .tabbar svg{width:24px;height:24px}
+  .tabbar [aria-current="page"]{color:var(--ink)}
+  .tabbar .ring{width:58px;height:58px;border-radius:18px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;margin-top:-28px;box-shadow:0 10px 26px var(--glow);border:4px solid var(--bg)}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+  .spin{animation:spin 2s linear infinite !important}
+}
+</style>
+</head>
+<body>
+<div class="auth" id="auth">
+  <form class="auth-card" id="authForm">
+    <div class="auth-stack" aria-hidden="true"><i></i><i></i><i></i></div>
+    <a class="logo" aria-label="Card Vault"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="2" width="22" height="28" rx="5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="6" fill="none" stroke="var(--accent)" stroke-width="2.6"/><path d="M16 10v3M16 19v3M10 16h3M19 16h3" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/></svg><b>CARD VAULT</b></a>
+    <h1>Every card you own. <span>What it’s worth.</span></h1>
+    <p class="muted">Log in or create a free account to start your collection.</p>
+    <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="current-password" minlength="6" required></div>
+    <div class="auth-btns">
+      <button class="btn primary" type="submit" data-mode="login">Log in</button>
+      <button class="btn ghost" type="submit" data-mode="signup">Create account</button>
+    </div>
+    <button type="button" class="linkbtn" id="forgot" style="text-align:left">Forgot password?</button>
+    <div class="status" id="authStatus" role="status"></div>
+  </form>
+</div>
+
+<header class="site">
+  <div class="wrap">
+    <a class="logo" href="#vault" aria-label="Card Vault home"><svg viewBox="0 0 32 32" aria-hidden="true"><rect x="5" y="2" width="22" height="28" rx="5" fill="none" stroke="currentColor" stroke-width="2.4"/><circle cx="16" cy="16" r="6" fill="none" stroke="var(--accent)" stroke-width="2.6"/><path d="M16 10v3M16 19v3M10 16h3M19 16h3" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"/></svg><b>CARD VAULT</b></a>
+    <nav class="toplinks" aria-label="Main">
+      <a href="#vault" data-nav="vault">My Vault</a>
+      <a href="#price-check" data-nav="price-check">Price Check</a>
+    </nav>
+    <div class="right">
+      <button class="linkbtn" data-logout>Log out</button>
+      <button class="btn primary" data-add><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add card</button>
+    </div>
+  </div>
+</header>
+
+<main>
+<section id="view-vault">
+  <div class="hero"><div class="wrap">
+    <div class="hero-grid">
+      <div>
+        <div class="eyebrowless">Collection value</div>
+        <div class="total" id="sValue">$0</div>
+        <span class="gain" id="sGain" hidden></span>
+        <div class="mini">
+          <div><b id="sCount">0</b><small>Cards</small></div>
+          <div><b id="sGraded">0</b><small>Graded</small></div>
+          <div><b id="sRaw">0</b><small>Raw</small></div>
+        </div>
+      </div>
+      <div class="show" id="show"></div>
+    </div>
+    <div class="alert" id="needEst" hidden>
+      <p id="needEstText"></p>
+      <button class="btn primary" id="needEstBtn">Find sales</button>
+    </div>
+  </div></div>
+
+  <div class="wrap">
+    <div class="sec-head"><h2 class="sec">Your cards</h2><span class="note" id="showing"></span></div>
+    <div class="toolbar">
+      <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Search player, set, year, grade" aria-label="Search your cards"></label>
+      <select id="fSort" aria-label="Sort">
+        <option value="new">Newest added</option><option value="value">Highest value</option>
+        <option value="gain">Biggest gain</option><option value="player">Player A–Z</option><option value="year">Year</option>
+      </select>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filters"></div>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" hidden>
+      <h3>Your vault is empty</h3>
+      <p>Snap a photo and enter what you paid. We’ll identify the card and find its recent sales.</p>
+      <button class="btn primary" data-add>Add your first card</button>
+    </div>
+    <div id="noMatch" class="empty" hidden><h3>No matches</h3><p>Try another search or tap “All”.</p></div>
+  </div>
+</section>
+
+<section id="view-price-check" hidden>
+  <div class="wrap">
+    <div class="pc-hero">
+      <h1>Scan any card. <span>See what it sells for.</span></h1>
+      <p>Snap the front of a card or slab. We identify it and pull its most recent sales.</p>
+    </div>
+    <div class="check">
+      <div>
+        <div class="scanner" id="scanner">
+          <div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="beam" aria-hidden="true"></div>
+          <div id="scanText"><strong class="display" style="font-size:20px">Line up the card</strong><br><span class="note">Front side, good light. Slab labels work great.</span></div>
+          <img id="scanImg" alt="" hidden>
+        </div>
+        <input type="file" id="camFile" accept="image/*" capture="environment" hidden>
+        <input type="file" id="upFile" accept="image/*" hidden>
+        <div class="scan-btns">
+          <button class="btn primary" id="camBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</button>
+          <button class="btn ghost" id="upBtn">Upload</button>
+        </div>
+        <input type="file" id="checkBack" accept="image/*" hidden>
+        <button class="btn ghost" id="checkBackBtn" style="width:100%;margin-top:10px" hidden>Add back of card (finds year &amp; details)</button>
+        <div class="status" id="scanStatus"></div>
+      </div>
+      <div class="panel" id="checkPanel">
+        <div id="checkResult">
+          <h3>How it works</h3>
+          <div class="how">
+            <div><b>Snap</b><span class="note">Photo of the front of the card or the slab.</span></div>
+            <div><b>Identify</b><span class="note">Year, set, number, parallel and grade, read for you.</span></div>
+            <div><b>Price</b><span class="note">Its latest sales, and the average of the newest few.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Card Vault</span>
+  <nav><a href="#vault">My Vault</a><a href="#price-check">Price Check</a><button class="linkbtn" data-logout>Log out</button></nav>
+</div></footer>
+
+<nav class="tabbar" aria-label="Main">
+  <a href="#vault" data-nav="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="4" y="3" width="11" height="15" rx="2"/><path d="M9 21h9a2 2 0 0 0 2-2V7"/></svg>Vault</a>
+  <a href="#price-check" data-nav="price-check"><span class="ring"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span>Price check</a>
+  <button data-add><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add card</button>
+</nav>
+
+<dialog id="editDlg">
+  <form class="dlg" id="editForm" method="dialog">
+    <div class="grab"></div>
+    <div class="dlg-head"><h2 id="editTitle">Add a card</h2><button type="button" class="xbtn" data-close aria-label="Close">✕</button></div>
+    <div class="big-photo">
+      <div class="thumb" id="editThumb">No photo</div>
+      <div>
+        <input type="file" id="editCam" accept="image/*" capture="environment" hidden>
+        <input type="file" id="editFile" accept="image/*" hidden>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary" id="editCamBtn" style="flex:1">Take photo</button><button type="button" class="btn ghost" id="pickPhoto" style="flex:1">Upload</button></div>
+        <input type="file" id="editBack" accept="image/*" hidden>
+        <button type="button" class="btn ghost" id="editBackBtn" style="width:100%;margin-top:8px" hidden>Add back of card</button>
+        <div class="status" id="editStatus"></div>
+      </div>
+    </div>
+    <div class="field paid"><label for="f_paid">What I paid</label><input id="f_paid" inputmode="decimal" placeholder="$0.00"></div>
+    <details class="more" id="moreBox"><summary>Card details (filled in for you)</summary>
+    <div class="form">
+      <div class="field full"><label for="f_player">Player</label><input id="f_player" placeholder="Filled in from photo" autocomplete="off"></div>
+      <div class="field"><label for="f_year">Year</label><input id="f_year" inputmode="numeric"></div>
+      <div class="field"><label for="f_num">Card #</label><input id="f_num"></div>
+      <div class="field full"><label for="f_set">Brand &amp; set</label><input id="f_set"></div>
+      <div class="field"><label for="f_var">Parallel / variant</label><input id="f_var"></div>
+      <div class="field"><label for="f_sport">Sport</label>
+        <select id="f_sport"><option>Baseball</option><option>Basketball</option><option>Football</option><option>Hockey</option><option>Soccer</option><option>Golf</option><option>Racing</option><option>Wrestling</option><option>Other</option></select></div>
+      <div class="field full"><label>Condition</label>
+        <div class="seg" role="group" aria-label="Graded or raw"><button type="button" data-cond="graded" aria-pressed="true">Graded</button><button type="button" data-cond="raw" aria-pressed="false">Raw</button></div></div>
+      <div class="field graded-only"><label for="f_grader">Grading company</label>
+        <select id="f_grader"><option>PSA</option><option>BGS</option><option>SGC</option><option>CGC</option><option>TAG</option><option>Other</option></select></div>
+      <div class="field graded-only"><label for="f_grade">Grade</label><input id="f_grade" inputmode="decimal"></div>
+      <div class="field graded-only full"><label for="f_cert">Cert #</label><input id="f_cert" inputmode="numeric"></div>
+      <div class="field raw-only full" hidden><label for="f_rawcond">Condition</label>
+        <select id="f_rawcond"><option>Gem mint</option><option>Mint</option><option>Near mint</option><option>Excellent</option><option>Very good</option><option>Played</option></select></div>
+      <div class="field full"><label for="f_value">My value ($)</label><input id="f_value" inputmode="decimal" placeholder="Leave blank to use recent sales"></div>
+      <div class="field full"><label for="f_tags">Tags</label><input id="f_tags" placeholder="rookie, PC, for sale"></div>
+      <div class="field full"><label for="f_notes">Notes</label><textarea id="f_notes" rows="2"></textarea></div>
+    </div>
+    </details>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="saveBtn">Save to vault</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="detailDlg"><div class="dlg" id="detailBody"></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => (n == null || isNaN(n)) ? "—" : "$" + Number(n).toLocaleString(undefined,{minimumFractionDigits:n<100?2:0,maximumFractionDigits:n<100?2:0});
+const kmoney = n => (n == null || isNaN(n)) ? "—" : n >= 1000 ? "$" + (Math.round(n/100)/10).toLocaleString() + "K" : "$" + Math.round(n);
+const num = v => { const n = parseFloat(String(v ?? "").replace(/[$,\s]/g,"")); return isNaN(n) ? null : n; };
+const toast = t => { const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove("show"),2600); };
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const today = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => { if (!d) return "Date unknown"; const x = new Date(d+"T12:00:00"); return isNaN(x) ? d : x.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); };
+function setStatus(el, t, err){ el.innerHTML = t; el.className = "status" + (err?" err":""); }
+const spinner = t => `<span class="pending"><span class="spin"></span>${t}</span>`;
+
+/* ---------- routing ---------- */
+const VIEWS = ["vault","price-check"];
+function route(){
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "vault";
+  VIEWS.forEach(x => $("#view-"+x).hidden = x !== v);
+  $$("[data-nav]").forEach(a => a.dataset.nav===v ? a.setAttribute("aria-current","page") : a.removeAttribute("aria-current"));
+  window.scrollTo(0,0);
+}
+addEventListener("hashchange", route); route();
+
+/* ---------- account + storage ---------- */
+let cards = [], current = null, filter = "all", user = null, bulkRunning = false;
+const CFG = window.CARD_VAULT_CONFIG || {};
+const sb = (window.supabase && CFG.SUPABASE_URL && !/PASTE/.test(CFG.SUPABASE_URL)) ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+const BUCKET = "card-photos";
+const latest = id => cards.find(c => c.id === id);
+async function loadCards(){
+  const { data, error } = await sb.from("cards").select("id,data,photo_path,created_at").order("created_at", { ascending:false });
+  if (error) { toast("Couldn’t load your cards. Refresh to try again."); return; }
+  const paths = data.map(r => r.photo_path).filter(Boolean), urls = {};
+  if (paths.length) {
+    const { data: signed } = await sb.storage.from(BUCKET).createSignedUrls(paths, 60*60*24);
+    (signed || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; });
+  }
+  cards = data.map(r => ({ ...r.data, id:r.id, photoPath:r.photo_path, image: r.photo_path ? (urls[r.photo_path] || null) : null }));
+  render();
+}
+async function putCard(card){
+  card = { ...card };
+  if (card.image && card.image.startsWith("data:") && !card._uploaded) {
+    const path = `${user.id}/${card.id}.jpg`;
+    const up = await sb.storage.from(BUCKET).upload(path, dataToBlob(card.image), { contentType:"image/jpeg", upsert:true });
+    if (up.error) throw up.error;
+    card.photoPath = path; card._uploaded = true;
+  }
+  const data = JSON.parse(JSON.stringify(card)); delete data.id; delete data.image; delete data.photoPath; delete data._uploaded;
+  const { error } = await sb.from("cards").upsert({ id:card.id, data, photo_path: card.photoPath || null });
+  if (error) throw error;
+  const i = cards.findIndex(c => c.id === card.id); if (i >= 0) cards[i] = card; else cards.unshift(card);
+  render(); if (current === card.id && $("#detailDlg").open) openDetail(card.id);
+  return card;
+}
+async function removeCard(id){
+  const c = latest(id);
+  const { error } = await sb.from("cards").delete().eq("id", id); if (error) throw error;
+  if (c?.photoPath) await sb.storage.from(BUCKET).remove([c.photoPath]);
+  cards = cards.filter(x => x.id !== id); render();
+}
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, ch => (ch ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> ch / 4).toString(16)));
+
+function setUser(u){
+  const changed = (u?.id || null) !== (user?.id || null); user = u || null;
+  $("#auth").hidden = !!user;
+  if (changed) { cards = []; render(); if (user) loadCards(); }
+}
+async function initAuth(){
+  const st = $("#authStatus");
+  if (!sb) { setStatus(st, "This site isn’t connected to its database yet. Fill in config.js (see SETUP.md).", true); return; }
+  const { data:{ session } } = await sb.auth.getSession();
+  setUser(session?.user);
+  sb.auth.onAuthStateChange(async (event, sess) => {
+    setUser(sess?.user);
+    if (event === "PASSWORD_RECOVERY") {
+      const pw = prompt("Choose a new password (at least 6 characters):");
+      if (pw) { const { error } = await sb.auth.updateUser({ password: pw }); toast(error ? error.message : "Password updated"); }
+    }
+  });
+}
+$("#authForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!sb) return;
+  const mode = e.submitter?.dataset.mode || "login", st = $("#authStatus");
+  const email = $("#aEmail").value.trim(), password = $("#aPass").value;
+  $$("#authForm .btn").forEach(b => b.disabled = true);
+  setStatus(st, mode === "signup" ? "Creating your account…" : "Logging in…");
+  const { data, error } = mode === "signup"
+    ? await sb.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin } })
+    : await sb.auth.signInWithPassword({ email, password });
+  $$("#authForm .btn").forEach(b => b.disabled = false);
+  if (error) return setStatus(st, error.message, true);
+  if (mode === "signup" && !data.session) setStatus(st, "Almost done: check your email and tap the confirm link, then log in here.");
+  else setStatus(st, "");
+});
+$("#forgot").addEventListener("click", async () => {
+  const email = $("#aEmail").value.trim(), st = $("#authStatus");
+  if (!email) return setStatus(st, "Type your email above first.", true);
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+  setStatus(st, error ? error.message : "Check your email for a password reset link.", !!error);
+});
+$$("[data-logout]").forEach(b => b.addEventListener("click", async () => { await sb?.auth.signOut(); location.hash = "#vault"; }));
+
+/* ---------- values ---------- */
+function estValue(c){
+  const e = c.estimate; if (!e) return null;
+  if (num(e.value) != null) return num(e.value);
+  if (num(e.low)!=null && num(e.high)!=null) return (num(e.low)+num(e.high))/2;
+  return null;
+}
+const cardValue = c => num(c.myValue) ?? estValue(c);
+const cardGain = c => { const v = cardValue(c), p = num(c.paid); return (v!=null && p!=null) ? v - p : null; };
+function valueLabel(c){
+  if (num(c.myValue) != null) return "Your value";
+  if (c.estimateFrom === "sales") return `Avg of last ${c.salesUsed || ""} sale${c.salesUsed===1?"":"s"}`.replace("  "," ");
+  if (estValue(c) != null) return "Rough estimate";
+  return "No value yet";
+}
+function autoQuery(c){
+  const short = (t,n) => String(t||"").replace(/[#()\/,]/g," ").split(/\s+/).filter(Boolean).slice(0,n).join(" ");
+  const parts = [c.year, short(c.set,3), c.player, short(c.number,1), short(c.variant,3)];
+  if (c.condition==="graded" && c.grader && c.grader!=="Other") parts.push(c.grader, c.grade);
+  return parts.filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+}
+const searchQuery = c => (c.searchQ && c.searchQ.trim()) || autoQuery(c);
+function marketLinks(q){
+  const e = encodeURIComponent(q);
+  return {
+    ebay: `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=261328&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=240`,
+    goldin: `https://goldin.co/buy/?search=${e}&page=1&show_only=Sold%2520Items&number_of_lots=240`,
+    fanatics: `https://www.google.com/search?q=${encodeURIComponent('site:fanaticscollect.com '+q)}`
+  };
+}
+function diyHTML(c, saveable){
+  const q = searchQuery(c), L = marketLinks(q);
+  return `<details class="diy" data-sales><summary>Check sales yourself</summary>
+    <div class="field" style="margin-top:4px"><label>Search words</label>
+      <div class="row"><input data-sq value="${esc(q)}" aria-label="Search words">${saveable?`<button type="button" class="btn ghost" data-savesq>Save</button>`:""}</div></div>
+    <div class="links" style="margin:12px 0 10px">
+      <a data-mk="ebay" href="${L.ebay}" target="_blank" rel="noopener">eBay sold ↗</a>
+      <a data-mk="goldin" href="${L.goldin}" target="_blank" rel="noopener">Goldin sold ↗</a>
+      <a data-mk="fanatics" href="${L.fanatics}" target="_blank" rel="noopener">Fanatics Collect ↗</a>
+    </div></details>`;
+}
+document.addEventListener("input", e => {
+  const inp = e.target.closest("[data-sq]"); if (!inp) return;
+  const box = inp.closest("[data-sales]"), inCheck = !!box.closest("#checkResult");
+  const c = inCheck ? check : latest(current); if (!c) return;
+  if (inCheck) check.searchQ = inp.value;
+  const L = marketLinks(inp.value.trim() || autoQuery(c));
+  box.querySelectorAll("[data-mk]").forEach(a => a.href = L[a.dataset.mk]);
+});
+function statsHTML(c){
+  const e = c.estimate || {}, v = cardValue(c), paid = num(c.paid), g = cardGain(c);
+  const range = (num(e.low)!=null && num(e.high)!=null && num(c.myValue)==null) ? `${kmoney(num(e.low))}–${kmoney(num(e.high))}` : "—";
+  return `<div class="stats">
+    <div class="stat hot"><small>${esc(valueLabel(c))}</small><b>${money(v)}</b></div>
+    <div class="stat"><small>Range</small><b>${range}</b></div>
+    <div class="stat"><small>Paid</small><b>${money(paid)}</b></div>
+    <div class="stat"><small>${g!=null&&g<0?"Down":"Up"}</small><b class="${g==null?"":g<0?"down":"up"}">${g==null?"—":money(Math.abs(g))}</b></div>
+  </div>`;
+}
+function salesHTML(c){
+  if (c.pricing) return `<div class="sales-empty">${spinner("Searching eBay, Goldin, Fanatics and more for recent sales… this can take up to a minute.")}</div>`;
+  const s = c.sales || [];
+  if (!s.length) return `<div class="sales-empty">${c.pricedAt ? "No recent sales of this exact card turned up. Try the search links below, or set your own value." : "Not checked yet. Tap <b>Find sales</b> to look up recent sales."}</div>`;
+  const used = c.salesUsed || 0;
+  return `<ul class="sales">${s.map((x,i) => {
+    const inner = `<span class="dot"></span><div class="t"><strong>${esc(fmtDate(x.date))} · ${esc(x.source)}</strong><span>${esc(x.title||"")}</span></div><div class="p">${money(x.price)}</div>`;
+    return `<li class="${i<used?"used":""}">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">${inner}</a>`:inner}</li>`;
+  }).join("")}</ul>
+  <p class="note" style="margin:8px 0 0">Highlighted sales make up the average.${c.salesNote?" "+esc(c.salesNote):""}${c.pricedAt?` Checked ${esc(fmtDate(c.pricedAt))}.`:""}</p>`;
+}
+
+/* ---------- accent from your top card ---------- */
+let accentFrom = null;
+function setAccentFrom(url){
+  if (!url || url === accentFrom) return; accentFrom = url;
+  const img = new Image(); img.crossOrigin = "anonymous";
+  img.onload = () => {
+    try {
+      const cv = document.createElement("canvas"); cv.width = cv.height = 32;
+      const ctx = cv.getContext("2d"); ctx.drawImage(img,0,0,32,32);
+      const d = ctx.getImageData(0,0,32,32).data;
+      let best = null, bestScore = 0; const buckets = {};
+      for (let i=0;i<d.length;i+=4){
+        const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255, mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2;
+        if (mx===mn || l<.18 || l>.85) continue;
+        const s = (mx-mn)/(1-Math.abs(2*l-1)); if (s<.35) continue;
+        let h = mx===r ? ((g-b)/(mx-mn))%6 : mx===g ? (b-r)/(mx-mn)+2 : (r-g)/(mx-mn)+4; h = Math.round((h*60+360)%360/15)*15;
+        buckets[h] = (buckets[h]||0) + s;
+        if (buckets[h] > bestScore) { bestScore = buckets[h]; best = h; }
+      }
+      if (best != null && bestScore > 4) { document.documentElement.style.setProperty("--ah", best); document.documentElement.style.setProperty("--as", "88%"); }
+    } catch {}
+  };
+  img.src = url;
+}
+
+/* ---------- vault render ---------- */
+function chipsHTML(){
+  const sports = [...new Set(cards.map(c=>c.sport).filter(Boolean))].sort();
+  const opts = [["all","All"],["graded","Graded"],["raw","Raw"],...sports.map(s=>["s:"+s,s])];
+  if (!opts.some(o=>o[0]===filter)) filter = "all";
+  $("#chips").innerHTML = opts.map(([v,l]) => `<button class="chip" data-chip="${esc(v)}" aria-pressed="${v===filter}">${esc(l)}</button>`).join("");
+}
+$("#chips").addEventListener("click", e => { const b = e.target.closest("[data-chip]"); if (b) { filter = b.dataset.chip; render(); } });
+function gradeBadge(c){
+  if (c.pending) return "";
+  return c.condition==="graded" ? `<span class="badge">${esc(`${c.grader||""} ${c.grade||""}`.trim() || "Graded")}</span>` : `<span class="badge raw">RAW</span>`;
+}
+function render(){
+  chipsHTML();
+  const q = $("#q").value.trim().toLowerCase(), sort = $("#fSort").value;
+  let list = cards.filter(c => {
+    if (filter==="graded" && c.condition!=="graded") return false;
+    if (filter==="raw" && c.condition!=="raw") return false;
+    if (filter.startsWith("s:") && c.sport!==filter.slice(2)) return false;
+    if (!q) return true;
+    const hay = [c.player,c.year,c.set,c.number,c.variant,c.sport,c.grader,c.grade,c.rawCondition,c.condition,(c.tags||[]).join(" "),c.notes,c.description].join(" ").toLowerCase();
+    return q.split(/\s+/).every(w => hay.includes(w));
+  });
+  const by = {new:(a,b)=>(b.added||0)-(a.added||0),value:(a,b)=>(cardValue(b)||0)-(cardValue(a)||0),gain:(a,b)=>(cardGain(b)??-1e12)-(cardGain(a)??-1e12),player:(a,b)=>(a.player||"").localeCompare(b.player||""),year:(a,b)=>(num(a.year)||0)-(num(b.year)||0)};
+  list.sort(by[sort]);
+
+  const total = cards.reduce((s,c)=>s+(cardValue(c)||0),0);
+  const paidCards = cards.filter(c => num(c.paid)!=null && cardValue(c)!=null);
+  const gain = paidCards.reduce((s,c)=>s+cardGain(c),0);
+  $("#sValue").textContent = money(total);
+  const gEl = $("#sGain");
+  if (paidCards.length) { gEl.hidden = false; gEl.className = "gain " + (gain<0?"down":"up"); gEl.textContent = `${gain<0?"▼":"▲"} ${money(Math.abs(gain))} ${gain<0?"below":"above"} what you paid`; }
+  else gEl.hidden = true;
+  $("#sCount").textContent = cards.length;
+  $("#sGraded").textContent = cards.filter(c=>c.condition==="graded").length;
+  $("#sRaw").textContent = cards.filter(c=>c.condition==="raw").length;
+  $("#showing").textContent = cards.length ? `${list.length} of ${cards.length}` : "";
+  $("#empty").hidden = cards.length > 0;
+  $("#noMatch").hidden = !(cards.length && !list.length);
+
+  const tops = [...cards].filter(c=>c.image).sort((a,b)=>(cardValue(b)||0)-(cardValue(a)||0)).slice(0,3), top = tops[0];
+  $("#show").innerHTML = top
+    ? `<div class="halo"></div>${tops.slice(1).map((c,i)=>`<button class="show-back b${i}" data-open="${c.id}" aria-label="Open ${esc(c.player||"card")}" tabindex="-1"><img src="${c.image}" alt=""></button>`).join("")}<button class="show-card" data-open="${top.id}" aria-label="Open ${esc(top.player||"top card")}"><img src="${top.image}" alt=""></button>
+       <div class="show-cap">Top card · <b>${money(cardValue(top))}</b></div>`
+    : `<div class="halo"></div><div class="show-empty">Your most valuable card shows up here</div>`;
+  if (top) setAccentFrom(top.image);
+
+  const need = cards.filter(c => !c.pending && !c.pricing && !c.pricedAt && (c.player || c.image));
+  $("#needEst").hidden = !need.length || bulkRunning;
+  $("#needEstText").textContent = `${need.length} card${need.length===1?"":"s"} still need${need.length===1?"s":""} recent sales.`;
+
+  $("#grid").innerHTML = list.map(c => {
+    const v = cardValue(c);
+    return `<button class="tile" data-open="${c.id}">
+      ${c.image?`<img src="${c.image}" alt="" loading="lazy">`:`<span class="noimg">No photo</span>`}
+      ${gradeBadge(c)}
+      <span class="shade">
+        <span class="who" style="display:block">${c.pending?`<span class="pending">${'<span class="spin"></span>'}Identifying…</span>`:esc(c.player||"Unknown card")}</span>
+        <span class="meta">${esc([c.year,c.set].filter(Boolean).join(" "))}${c.variant?` · ${esc(c.variant)}`:""}</span>
+        <span class="val"><b>${v==null?"":money(v)}</b><small>${c.pricing?"finding sales":num(c.myValue)!=null?"your value":c.estimateFrom==="sales"?"recent sales":v!=null?"estimate":c.pending?"":"no sales yet"}</small></span>
+      </span>
+    </button>`;
+  }).join("");
+}
+["#q","#fSort"].forEach(s => $(s).addEventListener("input", render));
+document.addEventListener("click", e => {
+  const b = e.target.closest("#grid [data-open], #show [data-open]");
+  if (b) openDetail(b.dataset.open);
+});
+$("#grid").addEventListener("pointermove", e => {
+  if (reduce || e.pointerType!=="mouse") return;
+  const s = e.target.closest(".tile"); if (!s) return;
+  const r = s.getBoundingClientRect();
+  s.style.setProperty("--mx", ((e.clientX-r.left)/r.width*100)+"%"); s.style.setProperty("--my", ((e.clientY-r.top)/r.height*100)+"%");
+});
+function tiltify(el){
+  if (!el || reduce) return;
+  el.addEventListener("pointermove", e => {
+    const r = el.getBoundingClientRect(), x = (e.clientX-r.left)/r.width, y = (e.clientY-r.top)/r.height;
+    el.style.setProperty("--ry", ((x-.5)*16)+"deg"); el.style.setProperty("--rx", ((.5-y)*16)+"deg");
+    el.style.setProperty("--mx", x*100+"%"); el.style.setProperty("--my", y*100+"%");
+  });
+  el.addEventListener("pointerleave", () => { el.style.setProperty("--rx","0deg"); el.style.setProperty("--ry","0deg"); });
+}
+$("#show").addEventListener("pointerover", e => { const c = e.target.closest(".show-card"); if (c && !c._t) { c._t = 1; tiltify(c); } });
+
+/* ---------- images ---------- */
+function shrink(file, max=900, q=.8){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      let tries = 0;
+      const go = (m, qq) => {
+        const s = Math.min(1, m/Math.max(img.width,img.height));
+        const cv = document.createElement("canvas"); cv.width=Math.round(img.width*s); cv.height=Math.round(img.height*s);
+        cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+        const data = cv.toDataURL("image/jpeg", qq);
+        if (data.length > 600000 && tries++ < 5) return go(m*.85, Math.max(.5,qq-.06));
+        URL.revokeObjectURL(url); res({data, blob:dataToBlob(data)});
+      };
+      go(max, q);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("That file isn’t a photo this browser can open.")); };
+    img.src = url;
+  });
+}
+function dataToBlob(d){
+  const b = atob(d.split(",")[1]); const a = new Uint8Array(b.length);
+  for (let i=0;i<b.length;i++) a[i]=b.charCodeAt(i);
+  return new Blob([a], {type:"image/jpeg"});
+}
+const blobToB64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(b); });
+async function imageBlob(src){ return src.startsWith("data:") ? dataToBlob(src) : await (await fetch(src)).blob(); }
+
+/* ---------- server calls ---------- */
+class ScanError extends Error {}
+async function api(path, body){
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session) throw new ScanError("Please log in again.");
+  let r;
+  try { r = await fetch(path, { method:"POST", headers:{ "Content-Type":"application/json", Authorization:"Bearer " + session.access_token }, body: JSON.stringify(body) }); }
+  catch { throw new ScanError("Couldn’t reach the server. Check your connection and try again."); }
+  const out = await r.json().catch(() => null);
+  if (r.status === 404 && !out) throw new ScanError("The server part of the site is missing. Make sure the api folder (with scan.js and prices.js) is on GitHub.");
+  if (r.status === 504 || (!out && r.status >= 500)) throw new ScanError("That took too long. Try again.");
+  if (!r.ok || !out || out.error) throw new ScanError(out?.error || `Something went wrong (code ${r.status}).`);
+  return out;
+}
+async function identify(blob, backBlob){
+  return api("/api/scan", { front: await blobToB64(blob), back: backBlob ? await blobToB64(backBlob) : null });
+}
+async function findSales(c){
+  return api("/api/prices", { card: { query: searchQuery(c), condition: c.condition, grader: c.grader, grade: c.grade, rawCondition: c.rawCondition } });
+}
+const friendly = e => (e instanceof ScanError) ? e.message : "Something went wrong. Try again.";
+const FIELDS = ["player","year","set","number","variant","sport","condition","grader","grade","cert","rawCondition"];
+function applyResult(card, r){
+  const out = {...card};
+  FIELDS.forEach(k => { const v = r?.[k]; if (v!=null && v!=="") out[k] = String(v); });
+  if (!["graded","raw"].includes(out.condition)) out.condition = out.grade ? "graded" : "raw";
+  if (r?.description) out.description = String(r.description);
+  if (r?.confidence) out.confidence = String(r.confidence);
+  if (r?.searchQuery) out.searchQ = String(r.searchQuery).replace(/#/g,"").trim();
+  if (r?.estimate && out.estimateFrom !== "sales") { out.estimate = { value:num(r.estimate.value), low:num(r.estimate.low), high:num(r.estimate.high) }; out.estimateFrom = "ai"; }
+  delete out.pending; delete out.scanFailed;
+  return out;
+}
+function applySales(card, p){
+  const out = {...card, sales: p.sales || [], salesUsed: p.used || 0, salesNote: p.note || "", pricedAt: today()};
+  if (p.average != null) { out.estimate = { value:p.average, low:p.low, high:p.high }; out.estimateFrom = "sales"; }
+  delete out.pricing;
+  return out;
+}
+/* run a sales lookup for a saved card, keeping the UI in sync */
+async function priceCard(id){
+  let c = latest(id); if (!c) return;
+  c = await putCard({...c, pricing:true});
+  try { const p = await findSales(c); c = await putCard(applySales(latest(id)||c, p)); return c; }
+  catch (err) { const now = {...(latest(id)||c)}; delete now.pricing; await putCard(now); throw err; }
+}
+
+/* ---------- add / edit sheet ---------- */
+let editing = null, editImage = null, editBlob = null, scanJob = null, userTouched = new Set();
+const F = id => $("#f_"+id);
+const FMAP = {player:"player",year:"year",set:"set",number:"num",variant:"var",sport:"sport",grader:"grader",grade:"grade",cert:"cert",rawCondition:"rawcond"};
+function setCond(c){
+  $$("[data-cond]").forEach(b => b.setAttribute("aria-pressed", b.dataset.cond===c));
+  $$(".graded-only").forEach(el => el.hidden = c!=="graded");
+  $$(".raw-only").forEach(el => el.hidden = c!=="raw");
+}
+const getCond = () => document.querySelector('[data-cond][aria-pressed="true"]').dataset.cond;
+$$("[data-cond]").forEach(b => b.addEventListener("click", () => { setCond(b.dataset.cond); userTouched.add("condition"); }));
+Object.entries(FMAP).forEach(([k,id]) => F(id).addEventListener("input", () => userTouched.add(k)));
+function fillForm(c){
+  Object.entries(FMAP).forEach(([k,id]) => { F(id).value = c[k] || (k==="sport"?"Baseball":k==="grader"?"PSA":k==="rawCondition"?"Near mint":""); });
+  F("paid").value=c.paid??""; F("value").value=c.myValue??""; F("tags").value=(c.tags||[]).join(", "); F("notes").value=c.notes||"";
+  setCond(c.condition||"graded");
+}
+const setThumb = src => { $("#editThumb").innerHTML = src ? `<img src="${src}" alt="Card photo">` : "No photo"; $("#editThumb").style.borderStyle = src ? "solid" : "dashed"; };
+function collectForm(){
+  const o = {}; Object.entries(FMAP).forEach(([k,id]) => o[k] = F(id).value.trim());
+  o.number = o.number.replace(/^#/,""); o.condition = getCond();
+  return {...o, paid:num(F("paid").value), myValue:num(F("value").value), tags:F("tags").value.split(",").map(t=>t.trim()).filter(Boolean), notes:F("notes").value.trim()};
+}
+function openEdit(card, title){
+  editing = card ? JSON.parse(JSON.stringify(card)) : {id:newId(), added:Date.now()};
+  editImage = editing.image || null; scanJob = null; userTouched = new Set();
+  $("#editTitle").textContent = title || (card ? "Edit card" : "Add a card");
+  fillForm(editing); setThumb(editImage); setStatus($("#editStatus"), "");
+  $("#moreBox").open = !!card && !title;
+  editBlob = null; if (editImage) imageBlob(editImage).then(b => { editBlob = b; }).catch(() => {});
+  $("#editBackBtn").hidden = !editImage;
+  $("#editDlg").showModal();
+  if (!card) setTimeout(() => F("paid").focus({preventScroll:true}), 50);
+}
+$$("[data-add]").forEach(b => b.addEventListener("click", () => openEdit(null)));
+$("#pickPhoto").onclick = () => $("#editFile").click();
+$("#editCamBtn").onclick = () => $("#editCam").click();
+$("#editBackBtn").onclick = () => $("#editBack").click();
+$("#editBack").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !editBlob) return;
+  let r; try { r = await shrink(f); } catch (err) { return setStatus($("#editStatus"), err.message, true); }
+  startScan(editBlob, r.blob, true);
+};
+async function onEditPhoto(e){
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  let r; try { r = await shrink(f); } catch (err) { return setStatus($("#editStatus"), err.message, true); }
+  editImage = r.data; editBlob = r.blob; setThumb(editImage); $("#editBackBtn").hidden = false;
+  startScan(r.blob, null, false);
+}
+function startScan(front, back, isBack){
+  const st = $("#editStatus");
+  setStatus(st, spinner(`${isBack?"Reading front and back…":"Reading the card…"} You can save now.`));
+  const sessionId = editing.id;
+  const job = identify(front, back);
+  scanJob = job;
+  job.then(res => {
+    if (!$("#editDlg").open || editing.id !== sessionId || scanJob !== job) return;
+    const now = collectForm(), merged = applyResult(now, res);
+    userTouched.forEach(k => merged[k] = now[k]);
+    Object.assign(editing, {description:merged.description, confidence:merged.confidence, searchQ:merged.searchQ, estimate:merged.estimate, estimateFrom:merged.estimateFrom});
+    fillForm({...merged, paid:num(F("paid").value), myValue:num(F("value").value), tags:now.tags, notes:now.notes});
+    scanJob = null;
+    setStatus(st, `Found <b>${esc(merged.player||"card")}</b>${merged.year?" · "+esc(merged.year):""}. Save to look up its recent sales.`);
+  }).catch(err => { if (scanJob === job) { scanJob = null; setStatus(st, friendly(err), true); } });
+}
+$("#editFile").onchange = onEditPhoto; $("#editCam").onchange = onEditPhoto;
+$("#editForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  let card = {...editing, ...collectForm(), image:editImage};
+  if (card.condition==="raw") { card.grader=""; card.grade=""; card.cert=""; }
+  const job = scanJob, detailsChanged = editing.player !== undefined && ["player","year","set","number","variant","grade","grader","condition"].some(k => (editing[k]||"") !== (card[k]||""));
+  if (job) card.pending = true;
+  $("#saveBtn").disabled = true;
+  try { card = await putCard(card); $("#editDlg").close(); toast(job ? "Saved. Finishing the details…" : "Saved to your vault"); }
+  catch { setStatus($("#editStatus"), "Couldn’t save. Check your connection and try again.", true); $("#saveBtn").disabled = false; return; }
+  $("#saveBtn").disabled = false;
+  const id = card.id, keep = new Set(userTouched);
+  try {
+    if (job) {
+      const res = await job;
+      const now = latest(id) || card, merged = applyResult(now, res);
+      keep.forEach(k => merged[k] = now[k]);
+      await putCard(merged);
+    }
+    const c = latest(id);
+    if (c && c.player && num(c.myValue)==null && (job || !c.pricedAt || detailsChanged)) {
+      const done = await priceCard(id);
+      toast(done?.estimateFrom === "sales" ? `${done.player}: ${money(estValue(done))} from recent sales` : `${done?.player||"Card"} saved. No recent sales found.`);
+    }
+  } catch (err) {
+    const now = latest(id); if (now?.pending) { const out = {...now, scanFailed:true}; delete out.pending; await putCard(out).catch(()=>{}); }
+    toast(friendly(err));
+  }
+});
+$$("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+$$("dialog").forEach(d => d.addEventListener("click", e => { if (e.target===d) d.close(); }));
+
+/* ---------- bulk "find sales" ---------- */
+$("#needEstBtn").addEventListener("click", async () => {
+  const need = cards.filter(c => !c.pending && !c.pricing && !c.pricedAt && (c.player || c.image));
+  if (!need.length) return;
+  bulkRunning = true; render();
+  let n = 0;
+  for (const c of need) {
+    n++; toast(`Finding sales ${n} of ${need.length}…`);
+    try {
+      if (!c.player && c.image) { const res = await identify(await imageBlob(c.image)); await putCard(applyResult(latest(c.id)||c, res)); }
+      await priceCard(c.id);
+    } catch (err) { if (err instanceof ScanError && /log in|credits|key|turned off|missing/i.test(err.message)) { toast(err.message); break; } }
+  }
+  bulkRunning = false; render(); toast("Done finding sales");
+});
+
+/* ---------- detail ---------- */
+function openDetail(id){
+  const c = latest(id); if (!c) return; current = id;
+  const g = c.condition==="graded" ? `${c.grader||""} ${c.grade||""}`.trim() : `Raw${c.rawCondition?" · "+c.rawCondition:""}`;
+  const pills = [c.year, c.set, c.number?"#"+c.number:"", c.variant, c.sport].filter(Boolean);
+  $("#detailBody").innerHTML = `
+    <div class="grab"></div>
+    <div class="dlg-head"><h2>${c.pending?"Identifying…":esc(c.player||"Unknown card")}</h2><button type="button" class="xbtn" data-x aria-label="Close">✕</button></div>
+    <div class="detail">
+      <div class="tilt" id="tilt"><div class="c3d">${c.image?`<img src="${c.image}" alt="Card photo">`:`<div class="noimg" style="display:grid;place-items:center;height:100%;color:var(--muted)">No photo</div>`}</div></div>
+      <div>
+        <div class="pills" style="margin-top:0"><span class="pill acc">${esc(g)}</span>${pills.map(p=>`<span class="pill">${esc(p)}</span>`).join("")}</div>
+        ${c.description?`<p class="desc" style="margin-top:14px">${esc(c.description)}</p>`:""}
+        ${c.condition==="graded"&&/psa/i.test(c.grader||"")&&c.cert?`<a class="certlink" href="https://www.psacard.com/cert/${encodeURIComponent(String(c.cert).replace(/\D/g,""))}" target="_blank" rel="noopener">PSA cert ${esc(c.cert)} · official photos ↗</a>`:""}
+        <div style="margin-top:16px">${statsHTML(c)}</div>
+        ${c.scanFailed?`<p class="note" style="margin:6px 0 0">We couldn’t read this photo last time. Tap Edit to fill in the details.</p>`:""}
+      </div>
+    </div>
+    <h3 class="sub">Recent sales <button type="button" class="btn ghost" data-findsales style="min-height:38px;padding:8px 14px;font-size:14px" ${c.pricing?"disabled":""}>${c.pricedAt?"Refresh":"Find sales"}</button></h3>
+    ${salesHTML(c)}
+    ${diyHTML(c, true)}
+    <div class="field" style="margin-top:16px"><label for="dVal">Set your own value</label>
+      <div class="row" style="grid-template-columns:1fr auto${c.myValue!=null?" auto":""}"><input id="dVal" inputmode="decimal" placeholder="${estValue(c)!=null?"Currently "+money(estValue(c)):"Type a value, like 4500"}" value="${c.myValue??""}"><button type="button" class="btn primary" data-setval>Save</button>${c.myValue!=null?`<button type="button" class="btn ghost" data-clearval>Use sales</button>`:""}</div>
+    </div>
+    <div class="status" id="dStatus"></div>
+    <div class="actions"><button class="btn danger" data-del>Delete</button><button class="btn ghost" data-edit>Edit</button>${c.image?`<button class="btn ghost" data-backbtn>Add back photo</button><input type="file" id="dBack" accept="image/*" hidden>`:""}</div>`;
+  const dlg = $("#detailDlg"); if (!dlg.open) dlg.showModal();
+  tiltify($("#tilt"));
+  const db = $("#dBack");
+  if (db) db.onchange = async ev => {
+    const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+    let r; try { r = await shrink(f); } catch (err) { return setStatus($("#dStatus"), err.message, true); }
+    setStatus($("#dStatus"), spinner("Reading front and back… this can take up to a minute."));
+    try { const res = await identify(await imageBlob(c.image), r.blob); await putCard(applyResult(latest(c.id)||c, res)); toast("Card details updated"); await priceCard(c.id); }
+    catch (err) { setStatus($("#dStatus"), friendly(err), true); }
+  };
+}
+$("#detailDlg").addEventListener("click", async e => {
+  const c = latest(current); if (!c) return;
+  if (e.target.closest("[data-x]")) return $("#detailDlg").close();
+  if (e.target.closest("[data-edit]")) { $("#detailDlg").close(); return openEdit(c); }
+  if (e.target.closest("[data-del]")) {
+    if (!confirm(`Delete ${c.player||"this card"} from your vault?`)) return;
+    $("#detailDlg").close(); await removeCard(c.id); return toast("Card deleted");
+  }
+  if (e.target.closest("[data-savesq]")) {
+    const q = $("#detailBody [data-sq]").value.trim();
+    await putCard({...c, searchQ: q}); toast("Search words saved. Tap Refresh to use them."); return;
+  }
+  if (e.target.closest("[data-setval]")) {
+    const v = num($("#dVal").value);
+    if (v == null) { setStatus($("#dStatus"), "Enter a price, like 4500.", true); return; }
+    await putCard({...c, myValue:v}); toast(`Value set to ${money(v)}`); return;
+  }
+  if (e.target.closest("[data-clearval]")) { const out = {...c}; delete out.myValue; await putCard(out); toast("Using recent sales again"); return; }
+  if (e.target.closest("[data-backbtn]")) { $("#dBack").click(); return; }
+  if (e.target.closest("[data-findsales]")) {
+    try { const done = await priceCard(c.id); toast(done?.estimateFrom==="sales" ? `Average of recent sales: ${money(estValue(done))}` : "No recent sales found"); }
+    catch (err) { setStatus($("#dStatus"), friendly(err), true); }
+  }
+});
+
+/* ---------- price check ---------- */
+let check = null, checkBlob = null;
+const scanner = $("#scanner");
+$("#camBtn").onclick = () => $("#camFile").click();
+$("#upBtn").onclick = () => $("#upFile").click();
+scanner.addEventListener("click", () => $("#upFile").click());
+const onScan = e => { const f = e.target.files[0]; e.target.value=""; if (f) runCheck(f); };
+$("#camFile").onchange = onScan; $("#upFile").onchange = onScan;
+["dragover","dragenter"].forEach(t => scanner.addEventListener(t, e => { e.preventDefault(); scanner.classList.add("over"); }));
+["dragleave","drop"].forEach(t => scanner.addEventListener(t, () => scanner.classList.remove("over")));
+scanner.addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) runCheck(f); });
+$("#checkBackBtn").onclick = () => $("#checkBack").click();
+$("#checkBack").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !checkBlob) return;
+  let r; try { r = await shrink(f); } catch (err) { return setStatus($("#scanStatus"), err.message, true); }
+  runCheck(null, r.blob);
+};
+async function runCheck(file, backBlob){
+  const st = $("#scanStatus"); setStatus(st, "");
+  let img;
+  if (file) { try { img = await shrink(file); } catch (e) { return setStatus(st, e.message, true); } checkBlob = img.blob; }
+  else img = { data: $("#scanImg").src, blob: checkBlob };
+  $("#checkBackBtn").hidden = false;
+  $("#scanImg").src = img.data; $("#scanImg").hidden=false; $("#scanText").hidden=true;
+  scanner.classList.add("busy");
+  $("#checkResult").innerHTML = `<h3>Scanning</h3><p>${spinner("Identifying the card…")}</p>`;
+  if (matchMedia("(max-width:860px)").matches) $("#checkPanel").scrollIntoView({behavior: reduce?"auto":"smooth", block:"start"});
+  try {
+    const r = await identify(img.blob, backBlob||null);
+    check = applyResult({id:newId(), added:Date.now(), image:img.data}, r);
+    check.pricing = true; renderCheck();
+    scanner.classList.remove("busy");
+    try { check = applySales(check, await findSales(check)); }
+    catch (err) { delete check.pricing; setStatus(st, friendly(err), true); }
+    renderCheck();
+  } catch (e) {
+    setStatus(st, friendly(e), true);
+    $("#checkResult").innerHTML = `<h3>Couldn’t scan</h3><p>${esc(friendly(e))}</p>`;
+  }
+  scanner.classList.remove("busy");
+}
+function renderCheck(){
+  const c = check;
+  const g = c.condition==="graded" ? `${c.grader||""} ${c.grade||""}`.trim() : `Raw${c.rawCondition?" · "+c.rawCondition:""}`;
+  const pills = [c.year, c.set, c.number?"#"+c.number:"", c.variant].filter(Boolean);
+  $("#checkResult").innerHTML = `
+    <div class="idname">${esc(c.player||"Unknown player")}</div>
+    <div class="pills"><span class="pill acc">${esc(g)}</span>${pills.map(p=>`<span class="pill">${esc(p)}</span>`).join("")}</div>
+    ${c.description?`<p class="desc" style="margin-top:14px">${esc(c.description)}</p>`:""}
+    <div style="margin-top:16px">${statsHTML(c)}</div>
+    <h3>Recent sales</h3>
+    ${salesHTML(c)}
+    ${diyHTML(c, false)}
+    <div class="actions"><button class="btn primary" id="cSave" ${c.pricing?"disabled":""}>Add to my vault</button></div>`;
+}
+$("#checkResult").addEventListener("click", e => {
+  if (check && e.target.closest("#cSave")) { const c = {...check}; openEdit(c, "Add to vault"); Object.assign(editing, {sales:c.sales, salesUsed:c.salesUsed, salesNote:c.salesNote, pricedAt:c.pricedAt, estimate:c.estimate, estimateFrom:c.estimateFrom, description:c.description, searchQ:c.searchQ}); }
+});
+
+render();
+initAuth();
+})();
+</script>
+</body>
+</html>
