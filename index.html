@@ -246,6 +246,10 @@ details.diy[open] summary{color:var(--ink)}
 .compare .stat b{font-size:28px}
 .verdict{margin-top:12px;padding:16px;border-radius:18px;background:var(--blue-soft);border:1px solid rgba(47,128,255,.35);font-weight:600;font-size:16px}
 
+/* active listings */
+.sales.act li{grid-template-columns:52px 1fr auto}
+.athumb{width:52px;height:52px;border-radius:10px;overflow:hidden;background:var(--s3);display:block}
+.athumb img{width:100%;height:100%;object-fit:cover}
 /* all grades */
 .aglist{display:grid;gap:8px;margin-top:10px}
 .agrow{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:0 14px}
@@ -492,7 +496,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault · v8</span>
+  <span>© 2026 Card Vault · v9</span>
   <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -714,7 +718,52 @@ function statsHTML(c){
     <div class="stat"><small>${g!=null&&g<0?"Down":"Up"}</small><b class="${g==null?"":g<0?"down":"up"}">${g==null?"—":money(Math.abs(g))}</b></div>
   </div>`;
 }
-/* ---------- all grades ---------- */
+/* ---------- active listings ---------- */
+const actCache = {};
+function activeLinks(q){
+  const e = encodeURIComponent(q), g = t => `https://www.google.com/search?q=${encodeURIComponent(t+" "+q)}`;
+  return [
+    ["eBay", `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=261328&_sop=15`],
+    ["Fanatics Collect", g("site:fanaticscollect.com")],
+    ["Goldin", `https://goldin.co/buy/?search=${e}`],
+    ["MySlabs", g("site:myslabs.com")],
+    ["COMC", g("site:comc.com")],
+    ["Alt", g("site:alt.xyz")],
+  ];
+}
+function activeHTML(c){
+  if (c.pending || !(c.player || c.searchQ)) return "";
+  const key = c.id || "check";
+  return `<div data-actbox>
+    <button type="button" class="btn ghost block" data-active style="margin-top:12px">Show active listings</button>
+    <div data-actout>${actCache[key] ? actRender(actCache[key], c) : ""}</div></div>`;
+}
+function actRender(r, c){
+  const links = activeLinks(searchQuery(c));
+  const list = (r.listings||[]).length ? `<ul class="sales act">${r.listings.map(x => `<li><a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">
+      <span class="athumb">${x.image?`<img src="${esc(x.image)}" alt="" loading="lazy">`:""}</span>
+      <div class="t"><strong>${esc(x.source)}${x.type?` · ${esc(x.type)}`:""}</strong><span>${esc(x.title)}</span></div>
+      <div class="p">${money(x.price)}</div></a></li>`).join("")}</ul>
+      <p class="note" style="margin:8px 0 0">For sale right now, cheapest first. Tap one to open it.</p>`
+    : `<div class="sales-empty" style="margin-top:10px">${esc(r.note || "No active listings found.")}</div>`;
+  return `<div style="margin-top:10px">${list}
+    <p class="lbl" style="margin:14px 0 8px">Look for it for sale on</p>
+    <div class="pills" style="margin-top:0">${links.map(([n,u]) => `<a class="pill" href="${esc(u)}" target="_blank" rel="noopener" style="text-decoration:none;padding:9px 14px">${esc(n)} ↗</a>`).join("")}</div></div>`;
+}
+document.addEventListener("click", async e => {
+  const btn = e.target.closest("[data-active]"); if (!btn) return;
+  const inCheck = !!btn.closest("#checkResult");
+  const c = inCheck ? check : latest(current); if (!c) return;
+  const key = inCheck ? "check" : c.id, out = btn.parentElement.querySelector("[data-actout]");
+  btn.disabled = true;
+  out.innerHTML = `<div class="sales-empty" style="margin-top:10px">${spinner("Finding cards for sale right now…")}</div>`;
+  try {
+    const r = await api("/api/prices", { active:true, card:{ query: searchQuery(c), condition: c.condition, grader: c.grader, grade: c.grade } });
+    actCache[key] = r; out.innerHTML = actRender(r, c);
+  } catch (err) { actCache[key] = { listings: [], note: friendly(err) }; out.innerHTML = actRender(actCache[key], c); }
+  btn.disabled = false; btn.textContent = "Refresh active listings";
+});
+/* ---------- all grades (not shown) ---------- */
 const GRADERS = ["PSA","BGS","SGC","CGC"];
 const agCache = {};
 function agGrader(c){ return GRADERS.includes(c.grader) ? c.grader : "PSA"; }
@@ -1204,7 +1253,7 @@ function openDetail(id){
     </div>
     <h3 class="sub">Recent sales <button type="button" class="btn ghost" data-findsales style="min-height:38px;padding:8px 14px;font-size:14px" ${c.pricing?"disabled":""}>${c.pricedAt?"Refresh":"Find sales"}</button></h3>
     ${salesHTML(c)}
-    ${allGradesHTML(c)}
+    ${activeHTML(c)}
     ${diyHTML(c, true)}
     <div class="field" style="margin-top:16px"><label for="dVal">Set your own value</label>
       <div class="row" style="grid-template-columns:1fr auto${c.myValue!=null?" auto":""}"><input id="dVal" inputmode="decimal" placeholder="${estValue(c)!=null?"Currently "+money(estValue(c)):"Type a value, like 4500"}" value="${c.myValue??""}"><button type="button" class="btn primary" data-setval>Save</button>${c.myValue!=null?`<button type="button" class="btn ghost" data-clearval>Use sales</button>`:""}</div>
@@ -1299,7 +1348,7 @@ function renderCheck(){
     <div style="margin-top:16px">${statsHTML(c)}</div>
     <h3>Recent sales</h3>
     ${salesHTML(c)}
-    ${allGradesHTML(c)}
+    ${activeHTML(c)}
     ${diyHTML(c, false)}
     <div class="actions"><button class="btn primary" id="cSave" ${c.pricing?"disabled":""}>Add to my vault</button></div>`;
 }
