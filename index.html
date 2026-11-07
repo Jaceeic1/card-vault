@@ -246,6 +246,8 @@ details.diy[open] summary{color:var(--ink)}
 .compare .stat b{font-size:28px}
 .verdict{margin-top:12px;padding:16px;border-radius:18px;background:var(--blue-soft);border:1px solid rgba(47,128,255,.35);font-weight:600;font-size:16px}
 
+.two-btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.two-btns .btn{padding:14px 10px}
 /* active listings */
 .sales.act li{grid-template-columns:52px 1fr auto}
 .athumb{width:52px;height:52px;border-radius:10px;overflow:hidden;background:var(--s3);display:block}
@@ -401,7 +403,7 @@ footer.foot a{text-decoration:none;font-weight:700}
     </div>
     <div class="alert" id="needEst" hidden>
       <p id="needEstText"></p>
-      <button class="btn primary" id="needEstBtn">Find sales</button>
+      <button class="btn primary" id="needEstBtn">Get estimates</button>
     </div>
 
     <div class="sec-head"><h2 class="sec">Your cards</h2><span class="note" id="showing"></span></div>
@@ -496,7 +498,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault · v10</span>
+  <span>© 2026 Card Vault · v11</span>
   <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -669,8 +671,7 @@ const cardValue = c => num(c.myValue) ?? estValue(c);
 const cardGain = c => { const v = cardValue(c), p = num(c.paid); return (v!=null && p!=null) ? v - p : null; };
 function valueLabel(c){
   if (num(c.myValue) != null) return "Your value";
-  if (c.estimateFrom === "sales") return `Avg of last ${c.salesUsed || ""} sale${c.salesUsed===1?"":"s"}`.replace("  "," ");
-  if (c.estimateFrom === "ai") return "Estimate (no sales found)";
+  if (c.estimateFrom === "sales" || c.estimateFrom === "ai") return "Estimated value";
   if (c.pricedAt) return "No sales found";
   return "No value yet";
 }
@@ -729,16 +730,19 @@ function soldQuery(c){
 }
 function soldButtons(c){
   if (c.pending || !(c.player || c.searchQ)) return "";
-  const q = soldQuery(c), e = encodeURIComponent(q + (c.condition==="graded" ? "" : " -psa -bgs -sgc -cgc"));
-  const ebay = `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=261328&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=240`;
-  return `<a class="btn primary block" href="${ebay}" target="_blank" rel="noopener" style="margin-top:12px">See eBay sold listings ↗</a>
-    <a class="btn ghost block" href="https://130point.com/sales/" target="_blank" rel="noopener" style="margin-top:8px" data-copyq="${esc(q)}">Check on 130point ↗</a>
-    <p class="note" style="margin:6px 2px 0;font-size:13.5px">Newest sales first. On 130point, paste the search words (we copy them for you when you tap).</p>`;
+  const q = soldQuery(c) + (c.condition==="graded" ? "" : " -psa -bgs -sgc -cgc"), e = encodeURIComponent(q);
+  const base = `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=261328&_ipg=240`;
+  return `<div class="two-btns">
+    <a class="btn primary" href="${base}&LH_Sold=1&LH_Complete=1&_sop=13" target="_blank" rel="noopener">Sold on eBay ↗</a>
+    <a class="btn ghost" href="${base}&_sop=15" target="_blank" rel="noopener">Active on eBay ↗</a></div>`;
 }
-document.addEventListener("click", e => {
-  const a = e.target.closest("[data-copyq]"); if (!a) return;
-  try { navigator.clipboard?.writeText(a.dataset.copyq); toast("Search words copied. Paste them on 130point."); } catch {}
-});
+function estimateStatus(c, canUpdate){
+  if (c.pending) return "";
+  if (c.pricing) return `<div class="sales-empty" style="margin-top:12px">${spinner("Working out the value… this can take up to a minute.")}</div>`;
+  const why = c.estimateFrom==="sales" ? `Based on ${c.salesUsed||"recent"} recent sale${c.salesUsed===1?"":"s"}.` : c.estimateFrom==="ai" ? (c.estimateBasis||"An estimate; no recent sales were found.") : "Not estimated yet.";
+  return `<p class="note" style="margin:10px 2px 0">${esc(why)}${c.pricedAt?` Updated ${esc(fmtDate(c.pricedAt))}.`:""}</p>
+    ${canUpdate?`<button type="button" class="btn ghost block" data-findsales style="margin-top:10px">${c.pricedAt?"Update estimate":"Get estimate"}</button>`:""}`;
+}
 /* ---------- active listings ---------- */
 const actCache = {};
 function activeLinks(q){
@@ -909,14 +913,14 @@ function render(){
 
   const need = cards.filter(c => !c.pending && !c.pricing && !c.pricedAt && (c.player || c.image));
   $("#needEst").hidden = !need.length || bulkRunning;
-  $("#needEstText").textContent = `${need.length} card${need.length===1?"":"s"} still need${need.length===1?"s":""} recent sales.`;
+  $("#needEstText").textContent = `${need.length} card${need.length===1?"":"s"} still need${need.length===1?"s":""} an estimate.`;
 
   $("#grid").innerHTML = list.map(c => {
     const v = cardValue(c), gn = cardGain(c);
     const badge = c.pending ? "" : c.condition==="graded" ? `<span class="gbadge">${esc(`${c.grader||""} ${c.grade||""}`.trim() || "Graded")}</span>` : `<span class="gbadge raw">RAW</span>`;
-    const sub = c.pricing ? `<small class="mut">finding sales…</small>` : num(c.myValue)!=null ? `<small class="mut">your value</small>`
+    const sub = c.pricing ? `<small class="mut">estimating…</small>` : num(c.myValue)!=null ? `<small class="mut">your value</small>`
       : gn!=null ? `<small class="${gn<0?"down":"up"}">${gn<0?"▼":"▲"} ${money(Math.abs(gn))}</small>`
-      : c.estimateFrom==="sales" ? `<small class="mut">avg of ${c.salesUsed}</small>` : c.estimateFrom==="ai" ? `<small class="mut">estimate</small>` : c.pending ? "" : `<small class="mut">${c.pricedAt?"no sales found":"no value yet"}</small>`;
+      : (c.estimateFrom==="sales"||c.estimateFrom==="ai") ? `<small class="mut">estimate</small>` : c.pending ? "" : `<small class="mut">${c.pricedAt?"no sales found":"no value yet"}</small>`;
     return `<button class="slab" data-open="${c.id}">
       <span class="pic">${c.image?`<img src="${c.image}" alt="" loading="lazy">`:"No photo"}</span>
       <span class="mid"><span class="who">${c.pending?`<span class="pending"><span class="spin"></span>Identifying…</span>`:esc(c.player||"Unknown card")}</span><span class="yr">${esc([c.year,c.set].filter(Boolean).join(" "))}${c.variant?` · ${esc(c.variant)}`:""}</span>${badge}</span>
@@ -993,7 +997,7 @@ async function identify(blob, backBlob){
   return api("/api/scan", { front: await blobToB64(blob), back: backBlob ? await blobToB64(backBlob) : null });
 }
 async function findSales(c){
-  return api("/api/prices", { card: { query: searchQuery(c), condition: c.condition, grader: c.grader, grade: c.grade, rawCondition: c.rawCondition } });
+  return api("/api/prices", { estimateOnly: true, card: { query: searchQuery(c), condition: c.condition, grader: c.grader, grade: c.grade, rawCondition: c.rawCondition } });
 }
 /* ---------- grade check ---------- */
 const SLOTS = [["front","Front",1],["back","Back",1],["topLeft","Top-left corner",0],["topRight","Top-right corner",0],["bottomLeft","Bottom-left corner",0],["bottomRight","Bottom-right corner",0]];
@@ -1228,7 +1232,7 @@ $("#editForm").addEventListener("submit", async e => {
     const c = latest(id);
     if (c && c.player && num(c.myValue)==null && (job || !c.pricedAt || detailsChanged)) {
       const done = await priceCard(id);
-      toast(done?.estimateFrom === "sales" ? `${done.player}: ${money(estValue(done))} from recent sales` : done?.estimateFrom === "ai" ? `${done.player||"Card"} saved. No sales found; estimate ${money(estValue(done))}` : `${done?.player||"Card"} saved. No recent sales found.`);
+      toast(estValue(done)!=null ? `${done.player||"Card"}: estimated ${money(estValue(done))}` : `${done?.player||"Card"} saved.`);
     }
   } catch (err) {
     const now = latest(id); if (now?.pending) { const out = {...now, scanFailed:true}; delete out.pending; await putCard(out).catch(()=>{}); }
@@ -1251,7 +1255,7 @@ $("#needEstBtn").addEventListener("click", async () => {
       await priceCard(c.id);
     } catch (err) { if (err instanceof ScanError && /log in|credits|key|turned off|missing/i.test(err.message)) { toast(err.message); break; } }
   }
-  bulkRunning = false; render(); toast("Done finding sales");
+  bulkRunning = false; render(); toast("Done estimating");
 });
 
 /* ---------- detail ---------- */
@@ -1272,10 +1276,7 @@ function openDetail(id){
         ${c.scanFailed?`<p class="note" style="margin:6px 0 0">We couldn’t read this photo last time. Tap Edit to fill in the details.</p>`:""}
       </div>
     </div>
-    <h3 class="sub">Recent sales <button type="button" class="btn ghost" data-findsales style="min-height:38px;padding:8px 14px;font-size:14px" ${c.pricing?"disabled":""}>${c.pricedAt?"Refresh":"Find sales"}</button></h3>
-    ${salesHTML(c)}
-    ${activeHTML(c)}
-    ${diyHTML(c, true)}
+    ${estimateStatus(c, true)}
     <div class="field" style="margin-top:16px"><label for="dVal">Set your own value</label>
       <div class="row" style="grid-template-columns:1fr auto${c.myValue!=null?" auto":""}"><input id="dVal" inputmode="decimal" placeholder="${estValue(c)!=null?"Currently "+money(estValue(c)):"Type a value, like 4500"}" value="${c.myValue??""}"><button type="button" class="btn primary" data-setval>Save</button>${c.myValue!=null?`<button type="button" class="btn ghost" data-clearval>Use sales</button>`:""}</div>
     </div>
@@ -1312,7 +1313,7 @@ $("#detailDlg").addEventListener("click", async e => {
   if (e.target.closest("[data-clearval]")) { const out = {...c}; delete out.myValue; await putCard(out); toast("Using recent sales again"); return; }
   if (e.target.closest("[data-backbtn]")) { $("#dBack").click(); return; }
   if (e.target.closest("[data-findsales]")) {
-    try { const done = await priceCard(c.id); toast(done?.estimateFrom==="sales" ? `Average of recent sales: ${money(estValue(done))}` : done?.estimateFrom==="ai" ? `No sales found. Estimate: ${money(estValue(done))}` : "No recent sales found"); }
+    try { const done = await priceCard(c.id); toast(estValue(done)!=null ? `Estimated value: ${money(estValue(done))}` : "Couldn’t estimate this card. Try again."); }
     catch (err) { setStatus($("#dStatus"), friendly(err), true); }
   }
 });
@@ -1367,10 +1368,7 @@ function renderCheck(){
     <div class="pills"><span class="pill acc">${esc(g)}</span>${pills.map(p=>`<span class="pill">${esc(p)}</span>`).join("")}</div>
     ${c.description?`<p class="desc" style="margin-top:14px">${esc(c.description)}</p>`:""}
     <div style="margin-top:16px">${statsHTML(c)}</div>${soldButtons(c)}
-    <h3>Recent sales</h3>
-    ${salesHTML(c)}
-    ${activeHTML(c)}
-    ${diyHTML(c, false)}
+    ${estimateStatus(c, false)}
     <div class="actions"><button class="btn primary" id="cSave" ${c.pricing?"disabled":""}>Add to my vault</button></div>`;
 }
 $("#checkResult").addEventListener("click", e => {
