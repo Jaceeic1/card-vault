@@ -143,12 +143,46 @@ async function getEbayPage(q, raw, proxied) {
     const blocked = html.length < 150000 && /Pardon Our Interruption|Checking your browser|verify you are a human|px-captcha|challenge-platform/i.test(html);
     console.error("eBay: no items parsed", proxied ? "(via ScraperAPI)" : "", html.length, blocked ? "(blocked)" : "");
     if (blocked) return { items: [], problem: proxied ? "eBay blocked the check even through ScraperAPI" : "eBay blocked the direct check", blocked: !proxied };
+    if (html.length < 60000 || /signin\.ebay|Sign in or register|<title>[^<]*Sign in/i.test(html) && !/\/itm\/\d{9,}/.test(html))
+      return { items: [], problem: "eBay showed a sign-in page instead of sold listings", blocked: !proxied };
     // A real page our reader couldn't understand (eBay changes its layout): hand its text to Claude.
     return { items: [], problem: "", text: pageText(html) };
   } catch (e) {
     console.error(proxied ? "ScraperAPI failed" : "eBay fetch failed", String(e));
     return { items: [], problem: proxied ? "ScraperAPI took too long" : "couldn’t reach eBay", blocked: !proxied };
   } finally { clearTimeout(timer); }
+}
+
+// ScraperAPI's own eBay reader (they keep it working when eBay changes things).
+async function getEbayStructured(q, raw) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 45000);
+  const query = raw ? `${q} -psa -bgs -sgc -cgc -graded -slab` : q;
+  const url = "https://api.scraperapi.com/structured/ebay/search?" + new URLSearchParams({
+    api_key: process.env.SCRAPER_API_KEY.trim(), query, show_only: "sold_items", items_per_page: "120", tld: "com" });
+  try {
+    const r = await fetch(url, { signal: ctl.signal });
+    if (!r.ok) return { items: [], problem: `ScraperAPI's eBay reader failed (code ${r.status})` };
+    const d = await r.json();
+    const list = Array.isArray(d) ? d : (d.products || d.results || d.items || d.search_results || []);
+    const items = [], seen = new Set();
+    for (const p of list) {
+      const all = JSON.stringify(p);
+      const title = String(p.product_title || p.title || p.name || "").trim();
+      const priceObj = p.item_price || p.price || {};
+      const price = Number(typeof priceObj === "object" ? (priceObj.value ?? priceObj.from?.value) : String(priceObj).replace(/[$,]/g, ""));
+      if (!title || !isFinite(price) || price <= 0 || (priceObj.from && priceObj.to)) continue;
+      const dm = all.match(/Sold\s+([A-Z][a-z]{2})\s+(\d{1,2}),?\s+(\d{4})/) || all.match(/"(?:sold_date|date_sold|end_date|sold)"\s*:\s*"([A-Z][a-z]{2})\s+(\d{1,2}),?\s+(\d{4})/);
+      const date = dm && dm[1] in MONTHS ? new Date(Date.UTC(+dm[3], MONTHS[dm[1]], +dm[2])).toISOString().slice(0, 10) : "";
+      const purl = String(p.product_url || p.url || p.link || "");
+      const id = (purl.match(/\/itm\/(?:[^"\/?]*\/)?(\d{9,15})/) || [])[1];
+      const key = id || `${title}|${price}`;
+      if (seen.has(key)) continue; seen.add(key);
+      items.push({ date, price, source: "eBay", title: title.replace(/^New Listing\s*/i, "").slice(0, 160), url: id ? `https://www.ebay.com/itm/${id}` : "" });
+    }
+    return { items, problem: items.length ? "" : (list.length ? "ScraperAPI's eBay reader returned listings without prices" : "ScraperAPI's eBay reader found no sold listings for these words") };
+  } catch (e) { return { items: [], problem: "ScraperAPI's eBay reader took too long" }; }
+  finally { clearTimeout(timer); }
 }
 
 async function fetchEbay(q, raw) {
@@ -273,6 +307,7 @@ module.exports = async (req, res) => {
     return res.status(400).json({ error: "Not enough card details to look up sales." });
   }
   if (body.allGrades) return allGradesLookup(card, today, ANTHROPIC_API_KEY, res);
+  if (body.active) return activeLookup(card, ANTHROPIC_API_KEY, res);
 
   // Step 1: eBay sold listings, straight from eBay.
   const raw = card.condition !== "graded";
@@ -313,8 +348,12 @@ module.exports = async (req, res) => {
     // eBay blocks Vercel's servers, so go straight through ScraperAPI (it can be slow,
     // so run two searches at once: the broad one and the exact one).
     useProxy = true;
-    const qs = [...new Set([tries[1] || tries[0], tries[0]])];
-    const results = await Promise.all(qs.map(q => within(getEbayPage(q, raw, true), Math.min(36000, left() - 14000), { items: [], problem: "ScraperAPI took too long" })));
+    const qs = [tries[1] || tries[0], tries[0]];
+    const wait = Math.min(36000, left() - 14000);
+    const results = await Promise.all([
+      within(getEbayStructured(qs[0], raw), wait, { items: [], problem: "ScraperAPI's eBay reader took too long" }),
+      within(getEbayPage(qs[1], raw, true), wait, { items: [], problem: "ScraperAPI took too long" }),
+    ]);
     results.forEach((r, i) => {
       searched.push(`${qs[i]} (${r.items.length})`);
       const ids = new Set(items.map(s => s.url));
@@ -536,4 +575,60 @@ Return ONLY JSON: {"sales":[{"grade":"10","date":"YYYY-MM-DD","price":number,"ti
   }).filter(Boolean);
   return res.status(200).json({ grader, grades,
     note: grades.length ? "" : `No ${grader} sales of this card turned up. ${ebayProblem ? ebayProblem + "." : ""} eBay search words: ${q}` });
+}
+
+
+// ---------- "Show active listings": cards for sale right now on eBay ----------
+async function activeLookup(card, key, res) {
+  if (!(process.env.SCRAPER_API_KEY || "").trim()) {
+    return res.status(200).json({ listings: [], note: "Active eBay listings need the SCRAPER_API_KEY in Vercel. Use the links below to search each site." });
+  }
+  const raw = card.condition !== "graded";
+  const GR = [[/psa/i,"PSA"],[/bgs|beckett/i,"BGS"],[/sgc/i,"SGC"],[/cgc/i,"CGC"]];
+  const grader = (GR.find(([re]) => re.test(card.grader || "")) || [null, ""])[1];
+  const gnum = (String(card.grade || "").match(/\d+(?:\.\d)?/) || [""])[0];
+  const gradeTag = !raw && grader ? `${grader} ${gnum}`.trim() : "";
+  const GRADE_WORDS = /\b(psa|bgs|sgc|cgc|csg|beckett|hga|gem|mint|mt|nm|nm-mt|pristine|authentic|graded|slab(?:bed)?)\b/gi;
+  const words = card.query
+    .replace(/\b\d{6,}\b/g, " ").replace(/\b\d{1,4}\s*\/\s*(\d{1,4})\b/g, "/$1").replace(/[#(),]/g, " ").replace(GRADE_WORDS, " ")
+    .replace(/(^|\s)(10|9\.5|9|8\.5|8|7\.5|7|6|5|4|3|2|1)(?=\s|$)/g, raw ? "$1$2" : " ").replace(/\s+/g, " ").trim();
+  const q = `${words} ${gradeTag}`.trim();
+  const query = raw ? `${q} -psa -bgs -sgc -cgc -graded -slab` : q;
+
+  let list = [];
+  try {
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), 40000);
+    const r = await fetch("https://api.scraperapi.com/structured/ebay/search?" + new URLSearchParams({
+      api_key: process.env.SCRAPER_API_KEY.trim(), query, items_per_page: "60", tld: "com" }), { signal: ctl.signal });
+    clearTimeout(timer);
+    if (!r.ok) return res.status(200).json({ listings: [], note: `Couldn’t load eBay listings right now (code ${r.status}). Use the links below.`, searched: q });
+    const d = await r.json();
+    list = Array.isArray(d) ? d : (d.products || d.results || d.items || []);
+  } catch { return res.status(200).json({ listings: [], note: "eBay took too long. Try again, or use the links below.", searched: q }); }
+
+  const items = [], seen = new Set();
+  for (const x of list) {
+    const title = String(x.product_title || x.title || x.name || "").replace(/^New Listing\s*/i, "").trim();
+    const po = x.item_price || x.price || {};
+    if (po.from && po.to) continue; // multi-item listings
+    const price = Number(typeof po === "object" ? po.value : String(po).replace(/[$,]/g, ""));
+    const url = String(x.product_url || x.url || x.link || "");
+    const id = (url.match(/\/itm\/(?:[^"\/?]*\/)?(\d{9,15})/) || [])[1];
+    if (!title || !id || seen.has(id) || !isFinite(price) || price <= 0 || /^shop on ebay$/i.test(title)) continue;
+    seen.add(id);
+    const extra = String(x.extra_info || x.buying_format || "");
+    items.push({ title: title.slice(0, 160), price, url: `https://www.ebay.com/itm/${id}`,
+      image: /^https:\/\//.test(String(x.image || x.thumbnail || "")) ? String(x.image || x.thumbnail) : "",
+      type: /bid/i.test(extra) || /auction/i.test(extra) ? (extra.match(/\d+\s*bids?/i)?.[0] || "Auction") : /best offer/i.test(extra) ? "Buy It Now · Best Offer" : extra ? "Buy It Now" : "",
+      source: "eBay" });
+  }
+  // Keep only this exact card in this grade.
+  let keep = items;
+  if (items.length) {
+    const m = await pickMatches(card, items.slice(0, 60), key);
+    if (m) keep = m;
+  }
+  keep.sort((a, b) => a.price - b.price);
+  return res.status(200).json({ listings: keep.slice(0, 25), searched: q,
+    note: keep.length ? "" : `No active eBay listings of this exact card right now. eBay search words: ${q}` });
 }
