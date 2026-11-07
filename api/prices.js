@@ -77,7 +77,7 @@ let useProxy = false;  // switches on after eBay blocks the server, for the rest
 // which opens the page from ordinary home internet connections.
 async function getEbayPage(q, raw, proxied) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), proxied ? 25000 : 7000);
+  const timer = setTimeout(() => ctl.abort(), proxied ? 45000 : 7000);
   const target = ebayUrl(q, raw);
   const url = proxied
     ? "https://api.scraperapi.com/?" + new URLSearchParams({ api_key: process.env.SCRAPER_API_KEY.trim(), url: target })
@@ -262,26 +262,32 @@ module.exports = async (req, res) => {
   const webPromise = within(webSearchLookup({ ...card, query: tries[0] }, today, ANTHROPIC_API_KEY), 50000, { sales: [], note: "" });
   const viaPromise = within(ebayViaClaude(card, tries[1] || tries[0], raw, today, ANTHROPIC_API_KEY), 50000, []);
 
-  // Quick direct check of eBay while those run.
+  // eBay sold listings.
   let items = [];
   const searched = [];
-  for (const q of tries) {
-    if (left() < (useProxy ? 27000 : 30000)) break;
-    const got = await fetchEbay(q, raw);
-    searched.push(`${q} (${got.length})`);
-    console.log("eBay search:", q, "->", got.length);
-    const ids = new Set(items.map(s => s.url));
-    items = items.concat(got.filter(s => !ids.has(s.url)));
-    if (items.length >= 8 || ebayProblem) break; // blocked once = blocked every time
-  }
-  if (items.length < 5 && !ebayProblem && left() > 30000) {
-    for (const q of await within(smartQueries(card, gradeTag, ANTHROPIC_API_KEY), 8000, [])) {
+  const hasKey = !!(process.env.SCRAPER_API_KEY || "").trim();
+  if (hasKey) {
+    // eBay blocks Vercel's servers, so go straight through ScraperAPI (it can be slow,
+    // so run two searches at once: the broad one and the exact one).
+    useProxy = true;
+    const qs = [...new Set([tries[1] || tries[0], tries[0]])];
+    const results = await Promise.all(qs.map(q => within(getEbayPage(q, raw, true), Math.min(44000, left() - 8000), { items: [], problem: "ScraperAPI took too long" })));
+    results.forEach((r, i) => {
+      searched.push(`${qs[i]} (${r.items.length})`);
+      const ids = new Set(items.map(s => s.url));
+      items = items.concat(r.items.filter(s => !ids.has(s.url)));
+    });
+    if (!items.length) ebayProblem = results.map(r => r.problem).find(Boolean) || "ScraperAPI found no eBay sales for these words";
+  } else {
+    for (const q of tries) {
+      if (left() < 30000) break;
       const got = await fetchEbay(q, raw);
       searched.push(`${q} (${got.length})`);
       const ids = new Set(items.map(s => s.url));
       items = items.concat(got.filter(s => !ids.has(s.url)));
-      if (items.length >= 8 || ebayProblem) break;
+      if (items.length >= 8 || ebayProblem) break; // blocked once = blocked every time
     }
+    if (ebayProblem && /blocked|refused|unexpected/.test(ebayProblem)) ebayProblem += " (add a SCRAPER_API_KEY in Vercel to fix this)";
   }
   let ebay = [], via = "";
   if (items.length) ebay = (await within(pickMatches(card, items.slice(0, 60), ANTHROPIC_API_KEY), Math.min(15000, left()), null)) || [];
@@ -306,7 +312,7 @@ module.exports = async (req, res) => {
   });
   const all = ebay.concat(extra);
   const note = ebay.length
-    ? `${ebay.length} from eBay sold listings${via}${extra.length ? `, ${extra.length} from other sites` : ""}.`
+    ? `${ebay.length} from eBay sold listings${via}${hasKey ? " (via ScraperAPI)" : ""}${extra.length ? `, ${extra.length} from other sites` : ""}.`
     : `${ebayProblem ? (/^eBay/.test(ebayProblem) ? ebayProblem : ebayProblem.charAt(0).toUpperCase() + ebayProblem.slice(1)) + ", so these are from other sites. " : "No matching eBay sales found; these are from other sites. "}${web.note || ""}`.trim();
   const out = summarize(all, today, note);
   out.searched = searched.length ? `eBay searched: ${searched.join(" · ")}` : `eBay search words: ${tries[0]}`;
@@ -438,7 +444,8 @@ Return ONLY JSON: {"sales":[{"grade":"10","date":"YYYY-MM-DD","price":number,"ti
 
   // Direct eBay check: one search for the card + company, then sort by the grade in each title.
   let direct = [];
-  const items = await fetchEbay(q, false);
+  useProxy = !!(process.env.SCRAPER_API_KEY || "").trim();
+  const items = await within(fetchEbay(q, false), 40000, []);
   if (items.length) {
     const prompt = `Card: ${words}\nBelow are sold eBay listing titles. Return the numbers of the listings that are this SAME card (same player, year, set, card number if given, and same parallel), graded by ${grader} in ANY grade. Exclude lots, reprints, other parallels, raw cards and other grading companies.\n\n${items.slice(0, 80).map((s, i) => `${i}. ${s.title}`).join("\n")}\n\nReturn ONLY JSON: {"match":[numbers]}`;
     try {
