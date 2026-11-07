@@ -83,9 +83,9 @@ function pageText(html) {
 // Have Claude read eBay's sold page text and pick out sales of this exact card.
 async function readSalesFromText(card, text, key, ms) {
   const grade = card.condition === "graded" ? `${card.grader || ""} ${card.grade || ""}`.trim() + " (sellers usually write just the company and number, e.g. PSA 10)" : "raw / ungraded";
-  const prompt = `Below is the text of an eBay "sold items" search results page. Each listing's item number appears as [itm:NUMBER] near its title.
+  const prompt = `Below is the text of a sold-sales search results page (eBay "sold items", or 130point, which lists eBay and auction-house sales with their real sold prices, including accepted Best Offers). eBay item numbers, when present, appear as [itm:NUMBER] near a title.
 List the SOLD listings that are this exact card: ${card.query} (${grade}). Same player, year, set, card number if given, same parallel/serial numbering, and ${card.condition === "graded" ? "same grade from the same grading company" : "ungraded copies only"}. Skip lots, reprints, other parallels and other grades. Be reasonable: sellers write titles very differently (word order, "2018-19", "WC", missing card number, extra words like GEM MINT or RC), so include a listing whenever it is clearly this card in this grade. Use each listing's own "Sold" date and its sold price (not shipping).
-Return ONLY JSON: {"sales":[{"date":"YYYY-MM-DD","price":number,"title":string,"itm":"NUMBER"}],"listings_on_page":number (how many sold listings of ANY card the page shows),"examples":[up to 3 listing titles from the page, exactly as written],"page_is":string (a few words: e.g. "eBay sold results", "eBay active listings", "blocked/verification page", "no results")}. Sales newest first, up to 20.
+Return ONLY JSON: {"sales":[{"date":"YYYY-MM-DD","price":number,"title":string,"itm":"NUMBER or empty","site":"where it sold, e.g. eBay, Goldin, Fanatics"}],"listings_on_page":number (how many sold listings of ANY card the page shows),"examples":[up to 3 listing titles from the page, exactly as written],"page_is":string (a few words: e.g. "eBay sold results", "130point sales results", "eBay active listings", "blocked/verification page", "sign-in page", "search form with no results")}. Sales newest first, up to 20.
 
 PAGE TEXT:
 ${text}`;
@@ -104,7 +104,7 @@ ${text}`;
     readSalesFromText.last = { count: Number(j.listings_on_page) || 0, examples: (j.examples || []).map(String).slice(0, 2), pageIs: String(j.page_is || "").slice(0, 60) };
     return (j.sales || []).map(s => ({
       date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "",
-      price: Number(String(s.price).replace(/[$,]/g, "")), source: "eBay",
+      price: Number(String(s.price).replace(/[$,]/g, "")), source: String(s.site || "eBay").slice(0, 30) + (readSalesFromText.via ? ` (via ${readSalesFromText.via})` : ""),
       title: String(s.title || "").slice(0, 160),
       url: /^\d{9,15}$/.test(String(s.itm || "")) ? `https://www.ebay.com/itm/${s.itm}` : "",
     })).filter(s => isFinite(s.price) && s.price > 0);
@@ -119,7 +119,7 @@ let useProxy = false;  // switches on after eBay blocks the server, for the rest
 // which opens the page from ordinary home internet connections.
 async function getEbayPage(q, raw, proxied) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), proxied ? 45000 : 7000);
+  const timer = setTimeout(() => ctl.abort(), proxied ? 65000 : 7000);
   const target = ebayUrl(q, raw);
   const url = proxied
     ? "https://api.scraperapi.com/?" + new URLSearchParams({ api_key: process.env.SCRAPER_API_KEY.trim(), url: target })
@@ -153,10 +153,26 @@ async function getEbayPage(q, raw, proxied) {
   } finally { clearTimeout(timer); }
 }
 
+// 130point shows eBay sold prices (including accepted Best Offers) without signing in.
+// Its results load with JavaScript, so ScraperAPI renders the page first.
+async function get130(q) {
+  const ctl = new AbortController();
+  const timer = setTimeout(() => ctl.abort(), 65000);
+  const target = "https://130point.com/sales/?" + new URLSearchParams({ q });
+  try {
+    const r = await fetch("https://api.scraperapi.com/?" + new URLSearchParams({
+      api_key: process.env.SCRAPER_API_KEY.trim(), url: target, render: "true" }), { signal: ctl.signal });
+    if (!r.ok) return { items: [], problem: `130point couldn’t be opened (code ${r.status})` };
+    const html = await r.text();
+    return { items: [], problem: "", text: pageText(html), from: "130point" };
+  } catch { return { items: [], problem: "130point took too long" }; }
+  finally { clearTimeout(timer); }
+}
+
 // ScraperAPI's own eBay reader (they keep it working when eBay changes things).
 async function getEbayStructured(q, raw) {
   const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 45000);
+  const timer = setTimeout(() => ctl.abort(), 65000);
   const query = raw ? `${q} -psa -bgs -sgc -cgc -graded -slab` : q;
   const url = "https://api.scraperapi.com/structured/ebay/search?" + new URLSearchParams({
     api_key: process.env.SCRAPER_API_KEY.trim(), query, show_only: "sold_items", items_per_page: "120", tld: "com" });
@@ -332,12 +348,12 @@ module.exports = async (req, res) => {
   const tries = [...new Set([words, noNum, short].filter(Boolean).map(w => `${w} ${gradeTag}`.trim()))];
   // Everything must finish before the server's 60-second limit, or the page shows "took too long".
   const started = Date.now();
-  const left = () => 52000 - (Date.now() - started);
+  const left = () => 105000 - (Date.now() - started);
   const within = (p, ms, fallback) => Promise.race([p, new Promise(r => setTimeout(() => r(fallback), Math.max(ms, 1000)))]);
 
   // Start the slow lookups right away, all at the same time.
   const estPromise = within(aiEstimate(card, today, ANTHROPIC_API_KEY), 45000, null);
-  const webPromise = within(webSearchLookup({ ...card, query: tries[0] }, today, ANTHROPIC_API_KEY), 50000, { sales: [], note: "" });
+  const webPromise = within(webSearchLookup({ ...card, query: tries[0] }, today, ANTHROPIC_API_KEY), 95000, { sales: [], note: "" });
   const viaPromise = (process.env.SCRAPER_API_KEY || "").trim() ? Promise.resolve([]) : within(ebayViaClaude(card, tries[1] || tries[0], raw, today, ANTHROPIC_API_KEY), 50000, []);
 
   // eBay sold listings.
@@ -349,20 +365,31 @@ module.exports = async (req, res) => {
     // so run two searches at once: the broad one and the exact one).
     useProxy = true;
     const qs = [tries[1] || tries[0], tries[0]];
-    const wait = Math.min(36000, left() - 14000);
+    const wait = Math.min(60000, left() - 25000);
     const results = await Promise.all([
       within(getEbayStructured(qs[0], raw), wait, { items: [], problem: "ScraperAPI's eBay reader took too long" }),
       within(getEbayPage(qs[1], raw, true), wait, { items: [], problem: "ScraperAPI took too long" }),
+      within(get130(qs[0]), wait, { items: [], problem: "130point took too long" }),
     ]);
+    qs.push(qs[0]);
     results.forEach((r, i) => {
       searched.push(`${qs[i]} (${r.items.length})`);
       const ids = new Set(items.map(s => s.url));
       items = items.concat(r.items.filter(s => !ids.has(s.url)));
     });
     if (!items.length) {
-      const text = results.map(r => r.text || "").filter(Boolean).sort((a, b) => b.length - a.length)[0];
-      if (text) {
-        pageRead = await readSalesFromText(card, text, ANTHROPIC_API_KEY, Math.min(20000, left()));
+      // Read every page we got (130point first) with Claude, at the same time.
+      const pages = results.filter(r => r.text && r.text.length > 150);
+      const text = pages.map(r => r.text).sort((a, b) => b.length - a.length)[0];
+      if (pages.length) {
+        const reads = await Promise.all(pages.map(async r => {
+          const out = await readSalesFromText(card, r.text, ANTHROPIC_API_KEY, Math.min(25000, left()));
+          return { from: r.from || "eBay page", out, info: readSalesFromText.last };
+        }));
+        pageRead = [].concat(...reads.map(x => x.out.map(s => ({ ...s, source: x.from === "130point" ? `${s.source.replace(/ \(via .*\)$/, "")} (via 130point)` : s.source.replace(/ \(via .*\)$/, "") }))));
+        readSalesFromText.last = (reads.find(x => !x.out.length) || reads[0] || {}).info;
+        const seenSale = new Set();
+        pageRead = pageRead.filter(x => { const k = (x.url.match(/\/itm\/(\d+)/) || [])[1] || `${x.date}|${Math.round(x.price)}`; if (seenSale.has(k)) return false; seenSale.add(k); return true; });
         if (!pageRead.length) {
           const info = readSalesFromText.last || {};
           const itms = (text.match(/\[itm:\d+\]/g) || []).length;
@@ -404,7 +431,7 @@ module.exports = async (req, res) => {
   });
   const all = ebay.concat(extra);
   const note = ebay.length
-    ? `${ebay.length} from eBay sold listings${via}${hasKey ? " (via ScraperAPI)" : ""}${extra.length ? `, ${extra.length} from other sites` : ""}.`
+    ? `${ebay.length} from ${ebay.some(x => /130point/.test(x.source)) ? "130point / eBay" : "eBay sold listings"}${via}${hasKey ? " (via ScraperAPI)" : ""}${extra.length ? `, ${extra.length} from other sites` : ""}.`
     : `${ebayProblem ? (/^eBay/.test(ebayProblem) ? ebayProblem : ebayProblem.charAt(0).toUpperCase() + ebayProblem.slice(1)) + ", so these are from other sites. " : "No matching eBay sales found; these are from other sites. "}${web.note || ""}`.trim();
   const out = summarize(all, today, note);
   out.searched = searched.length ? `eBay searched: ${searched.join(" · ")}` : `eBay search words: ${tries[0]}`;
@@ -502,7 +529,7 @@ async function allGradesLookup(card, today, key, res) {
   const q = `${words} ${grader}`.trim();
 
   const started = Date.now();
-  const left = () => 52000 - (Date.now() - started);
+  const left = () => 105000 - (Date.now() - started);
   const within = (p, ms, fb) => Promise.race([p, new Promise(r => setTimeout(() => r(fb), Math.max(ms, 1000)))]);
 
   const webPrompt = `Today's date is ${today}. Find completed sales (final sold prices) of this sports card in EVERY ${grader} grade: ${words}.
@@ -530,7 +557,7 @@ Return ONLY JSON: {"sales":[{"grade":"10","date":"YYYY-MM-DD","price":number,"ti
       const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
       readSalesFromText.last = { count: Number(j.listings_on_page) || 0, examples: (j.examples || []).map(String).slice(0, 2), pageIs: String(j.page_is || "").slice(0, 60) };
     return (j.sales || []).map(s => ({ grade: String(s.grade || ""), date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "",
-        price: Number(String(s.price).replace(/[$,]/g, "")), source: "eBay", title: String(s.title || "").slice(0, 160),
+        price: Number(String(s.price).replace(/[$,]/g, "")), source: String(s.site || "eBay").slice(0, 30) + (readSalesFromText.via ? ` (via ${readSalesFromText.via})` : ""), title: String(s.title || "").slice(0, 160),
         url: /^https?:\/\/(www\.)?ebay\.com\//.test(String(s.url || "")) ? String(s.url) : "" }));
     } catch { return []; }
   })(), 50000, []);
