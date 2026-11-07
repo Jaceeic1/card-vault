@@ -496,7 +496,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault · v9</span>
+  <span>© 2026 Card Vault · v10</span>
   <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -718,6 +718,27 @@ function statsHTML(c){
     <div class="stat"><small>${g!=null&&g<0?"Down":"Up"}</small><b class="${g==null?"":g<0?"down":"up"}">${g==null?"—":money(Math.abs(g))}</b></div>
   </div>`;
 }
+/* ---------- eBay sold button ---------- */
+function soldQuery(c){
+  let q = searchQuery(c).replace(/\b\d{6,}\b/g," ").replace(/\b\d{1,4}\s*\/\s*(\d{1,4})\b/g,"/$1");
+  if (c.condition==="graded" && c.grader && c.grader!=="Other") {
+    const n = String(c.grade||"").match(/10|[1-9](?:\.5)?/)?.[0] || "";
+    q = q.replace(/\b(psa|bgs|sgc|cgc|beckett|gem|mint|mt|nm-mt)\b/gi," ").replace(/(^|\s)(10|9\.5|9|8\.5|8|7|6|5|4|3|2|1)(?=\s|$)/g," ") + ` ${c.grader} ${n}`;
+  }
+  return q.replace(/\s+/g," ").trim();
+}
+function soldButtons(c){
+  if (c.pending || !(c.player || c.searchQ)) return "";
+  const q = soldQuery(c), e = encodeURIComponent(q + (c.condition==="graded" ? "" : " -psa -bgs -sgc -cgc"));
+  const ebay = `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=261328&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=240`;
+  return `<a class="btn primary block" href="${ebay}" target="_blank" rel="noopener" style="margin-top:12px">See eBay sold listings ↗</a>
+    <a class="btn ghost block" href="https://130point.com/sales/" target="_blank" rel="noopener" style="margin-top:8px" data-copyq="${esc(q)}">Check on 130point ↗</a>
+    <p class="note" style="margin:6px 2px 0;font-size:13.5px">Newest sales first. On 130point, paste the search words (we copy them for you when you tap).</p>`;
+}
+document.addEventListener("click", e => {
+  const a = e.target.closest("[data-copyq]"); if (!a) return;
+  try { navigator.clipboard?.writeText(a.dataset.copyq); toast("Search words copied. Paste them on 130point."); } catch {}
+});
 /* ---------- active listings ---------- */
 const actCache = {};
 function activeLinks(q){
@@ -1247,7 +1268,7 @@ function openDetail(id){
         <div class="pills" style="margin-top:0"><span class="pill acc">${esc(g)}</span>${pills.map(p=>`<span class="pill">${esc(p)}</span>`).join("")}</div>
         ${c.description?`<p class="desc" style="margin-top:14px">${esc(c.description)}</p>`:""}
         ${c.gradeEstimate?`<div class="chip" style="margin-top:12px">Estimated grade: PSA ${esc(c.gradeEstimate.grade)}${c.gradeEstimate.low!=null&&c.gradeEstimate.high!=null&&c.gradeEstimate.low!==c.gradeEstimate.high?` (${esc(c.gradeEstimate.low)}–${esc(c.gradeEstimate.high)})`:""}</div>`:""}
-        <div style="margin-top:16px">${statsHTML(c)}</div>
+        <div style="margin-top:16px">${statsHTML(c)}</div>${soldButtons(c)}
         ${c.scanFailed?`<p class="note" style="margin:6px 0 0">We couldn’t read this photo last time. Tap Edit to fill in the details.</p>`:""}
       </div>
     </div>
@@ -1345,7 +1366,7 @@ function renderCheck(){
     <div class="idname">${esc(c.player||"Unknown player")}</div>
     <div class="pills"><span class="pill acc">${esc(g)}</span>${pills.map(p=>`<span class="pill">${esc(p)}</span>`).join("")}</div>
     ${c.description?`<p class="desc" style="margin-top:14px">${esc(c.description)}</p>`:""}
-    <div style="margin-top:16px">${statsHTML(c)}</div>
+    <div style="margin-top:16px">${statsHTML(c)}</div>${soldButtons(c)}
     <h3>Recent sales</h3>
     ${salesHTML(c)}
     ${activeHTML(c)}
