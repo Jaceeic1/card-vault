@@ -1,0 +1,1263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<meta name="color-scheme" content="dark">
+<title>Card Vault</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23000'/%3E%3Crect x='9' y='5' width='14' height='22' rx='3' fill='none' stroke='%23fff' stroke-width='2'/%3E%3Crect x='11.5' y='8' width='9' height='4' rx='1' fill='%232F80FF'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+<script src="config.js"></script>
+<style>
+:root{
+  --bg:#000; --s1:#0E0F12; --s2:#17181C; --s3:#202228; --line:#23252B; --line2:#33363E;
+  --ink:#FFFFFF; --muted:#9A9FAB; --faint:#62666F;
+  --blue:#2F80FF; --blue2:#5C9CFF; --blue-ink:#FFFFFF; --blue-soft:rgba(47,128,255,.14);
+  --font:"Plus Jakarta Sans","Segoe UI",Helvetica,Arial,sans-serif;
+  --nav-h:0px;
+  color-scheme:dark; box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:calc(env(safe-area-inset-top,0px) + 70px);-webkit-text-size-adjust:100%;background:#000}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.5;-webkit-tap-highlight-color:transparent;overflow-x:hidden;min-height:100vh}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:40;background:#000}
+.aura{display:none}
+button,input,select,textarea{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+img{max-width:100%;display:block}
+a{color:inherit}
+.wrap{max-width:760px;margin:0 auto;padding:0 18px}
+.muted{color:var(--muted)} .note{color:var(--muted);font-size:15px}
+[hidden]{display:none !important}
+.h-display{font-weight:800;letter-spacing:-.03em}
+
+/* buttons: big and simple */
+.btn{border:0;background:var(--s3);color:var(--ink);padding:14px 22px;border-radius:16px;font-weight:800;font-size:17px;cursor:pointer;white-space:nowrap;display:inline-flex;align-items:center;justify-content:center;gap:10px;min-height:56px;text-decoration:none;transition:transform .1s ease,background .15s,filter .15s}
+.btn:active{transform:scale(.97)}
+.btn.primary{background:var(--blue);color:var(--blue-ink)}
+.btn.primary:hover{filter:brightness(1.1)}
+.btn.ghost{background:var(--s2);box-shadow:inset 0 0 0 1px var(--line2)}
+.btn.ghost:hover{box-shadow:inset 0 0 0 1px var(--blue)}
+.btn.danger{background:var(--s2);color:var(--ink);box-shadow:inset 0 0 0 1px var(--line2)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn svg{width:22px;height:22px;flex:none}
+.btn.block{width:100%}
+.linkbtn{background:none;border:0;color:var(--muted);font-weight:700;cursor:pointer;padding:8px 0;font-size:15px}
+.linkbtn:hover{color:var(--ink)}
+
+/* header */
+.site{position:sticky;top:env(safe-area-inset-top,0px);z-index:30;background:rgba(0,0,0,.85);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--line)}
+.site .wrap{display:flex;align-items:center;gap:20px;height:62px;max-width:1100px}
+.logo{display:flex;align-items:center;gap:10px;text-decoration:none}
+.logo svg{width:22px;height:30px}
+.logo b{font-weight:800;font-size:19px;letter-spacing:-.02em}
+.toplinks{display:flex;gap:4px}
+.toplinks a{text-decoration:none;font-weight:700;font-size:15px;padding:9px 14px;border-radius:12px;color:var(--muted)}
+.toplinks a:hover{color:var(--ink)}
+.toplinks a[aria-current="page"]{color:var(--ink);background:var(--s2)}
+.site .right{margin-left:auto;display:flex;gap:12px;align-items:center}
+.site .right .btn{min-height:44px;padding:10px 16px;font-size:15px}
+.mlogout{display:none;margin-left:auto}
+
+/* login */
+.auth{position:fixed;inset:0;z-index:70;background:#000;display:grid;place-items:center;padding:24px;overflow:auto}
+.auth-card{width:100%;max-width:400px;display:grid;gap:16px}
+.auth-card h1{font-weight:800;font-size:clamp(36px,9vw,48px);line-height:1.02;margin:12px 0 0;letter-spacing:-.04em}
+.auth-card h1 span{color:var(--blue)}
+.auth-card p{margin:0}
+.auth-btns{display:grid;gap:10px;margin-top:4px}
+.slabs{position:relative;height:120px}
+.slabs i{position:absolute;bottom:0;width:72px;aspect-ratio:5/8;border-radius:12px;border:1.5px solid var(--line2);background:var(--s1)}
+.slabs i::before{content:"";position:absolute;left:7px;right:7px;top:7px;height:13px;border-radius:4px;background:var(--s3)}
+.slabs i:nth-child(1){left:0;transform:rotate(-10deg)}
+.slabs i:nth-child(2){left:54px;border-color:var(--blue);z-index:2}
+.slabs i:nth-child(2)::before{background:var(--blue)}
+.slabs i:nth-child(3){left:108px;transform:rotate(9deg)}
+
+/* fields */
+.field label{display:block;font-size:15px;font-weight:700;margin-bottom:8px;color:var(--muted)}
+.field input,.field textarea,.field select,select{width:100%;padding:14px 16px;border:1.5px solid var(--line2);border-radius:16px;background:var(--s1);font-size:17px;min-height:56px}
+.field input:focus,.field textarea:focus,select:focus,.row input:focus,.search input:focus{border-color:var(--blue);outline:none}
+.status{font-size:15px;color:var(--muted);min-height:22px;margin-top:10px}
+.status.err{color:var(--ink);background:var(--s2);border-left:4px solid var(--blue);padding:10px 12px;border-radius:10px}
+.status.err:empty{display:none}
+
+/* page heads */
+.phead{padding:28px 0 6px}
+.phead h1{font-weight:800;font-size:40px;line-height:1.05;letter-spacing:-.04em;margin:0}
+.phead h1 em{font-style:normal;color:var(--blue)}
+.phead p{color:var(--muted);font-size:17px;margin:10px 0 0}
+
+/* home / vault */
+.hero{margin:22px 0 0}
+.panel{background:var(--s1);border:1px solid var(--line);border-radius:24px;padding:20px;position:relative}
+.valuecard{padding:24px 22px;background:linear-gradient(180deg,#0B1424 0%,var(--s1) 100%);border-color:#18243A}
+.lbl{font-size:15px;font-weight:700;color:var(--muted)}
+.total{font-weight:800;font-size:56px;line-height:1;letter-spacing:-.045em;margin:6px 0 12px;font-variant-numeric:tabular-nums}
+.chip{display:inline-flex;align-items:center;gap:6px;font-weight:700;padding:8px 14px;border-radius:999px;font-size:15px;background:var(--s2);border:1px solid var(--line2)}
+.chip.up{color:var(--blue2);border-color:rgba(47,128,255,.35);background:var(--blue-soft)}
+.chip.down{color:var(--muted)}
+.statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:10px}
+.stat2{background:var(--s1);border:1px solid var(--line);border-radius:18px;padding:14px 16px}
+.stat2 b{display:block;font-weight:800;font-size:28px;line-height:1.1;letter-spacing:-.03em}
+.stat2 small{display:block;color:var(--muted);font-weight:700;font-size:14px;margin-bottom:2px}
+.stat2.wide{display:none}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+.qa{display:flex;flex-direction:column;gap:10px;padding:18px;border-radius:20px;background:var(--s1);border:1px solid var(--line);text-decoration:none;min-height:116px;transition:border-color .15s,transform .1s}
+.qa:active{transform:scale(.98)}
+.qa:hover{border-color:var(--blue)}
+.qa .ic{width:44px;height:44px;border-radius:14px;display:grid;place-items:center;background:var(--blue);color:#fff}
+.qa .ic svg{width:24px;height:24px}
+.qa b{font-size:18px;font-weight:800;letter-spacing:-.02em}
+.qa span{font-size:14px;color:var(--muted);font-weight:600;margin-top:-6px}
+.alert{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap;background:var(--blue-soft);border:1px solid rgba(47,128,255,.4);border-radius:20px;padding:14px 14px 14px 18px;margin:10px 0 0}
+.alert p{margin:0;font-weight:700}
+.alert .btn{min-height:48px}
+
+/* card list */
+.sec-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:30px 0 12px}
+h2.sec{font-weight:800;font-size:26px;line-height:1;margin:0;letter-spacing:-.03em}
+.toolbar{display:grid;grid-template-columns:1fr auto;gap:10px;margin-bottom:10px}
+.search{position:relative}
+.search svg{position:absolute;left:16px;top:50%;transform:translateY(-50%);width:20px;height:20px;color:var(--muted)}
+.search input{width:100%;padding:14px 14px 14px 48px;border:1.5px solid var(--line2);border-radius:16px;background:var(--s1);font-size:17px;min-height:56px}
+.toolbar select{width:auto}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:2px 0 12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.fchip{flex:none;border:1.5px solid var(--line2);background:transparent;padding:9px 18px;border-radius:999px;font-weight:700;font-size:15px;cursor:pointer;min-height:44px;color:var(--muted)}
+.fchip[aria-pressed="true"]{background:var(--ink);color:#000;border-color:var(--ink)}
+.grid{display:grid;grid-template-columns:1fr;gap:10px;margin-bottom:40px}
+.slab{display:grid;grid-template-columns:72px 1fr auto;column-gap:14px;align-items:center;width:100%;padding:12px 16px 12px 12px;border-radius:20px;background:var(--s1);border:1px solid var(--line);cursor:pointer;text-align:left;transition:border-color .15s,background .15s}
+.slab:hover{border-color:var(--line2);background:var(--s2)}
+.slab:active{transform:scale(.99)}
+.slab .pic{width:72px;aspect-ratio:5/7;border-radius:10px;overflow:hidden;background:var(--s3);display:grid;place-items:center;color:var(--faint);font-size:11px;font-weight:700;text-align:center}
+.slab .pic img{width:100%;height:100%;object-fit:cover}
+.slab .mid{min-width:0;display:flex;flex-direction:column;gap:3px}
+.slab .who{font-size:18px;font-weight:800;line-height:1.2;letter-spacing:-.02em;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.slab .yr{font-size:14px;color:var(--muted);font-weight:600;display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden}
+.slab .mid .gbadge{align-self:flex-start;margin-top:4px}
+.slab .end{text-align:right;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.slab .end b{font-size:20px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.slab .end small{font-size:14px;font-weight:700;white-space:nowrap;color:var(--muted)}
+.slab .end small.up{color:var(--blue2)}
+.gbadge{display:inline-block;font-weight:800;font-size:13px;padding:4px 9px;border-radius:8px;background:var(--blue);color:#fff;white-space:nowrap}
+.gbadge.raw{background:var(--s3);color:var(--muted)}
+.pending{display:inline-flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:var(--muted)}
+.spin{width:16px;height:16px;border:2.5px solid var(--line2);border-top-color:var(--blue);border-radius:50%;animation:spin .8s linear infinite;flex:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{border:1.5px dashed var(--line2);border-radius:24px;padding:40px 22px;text-align:center;color:var(--muted);margin-bottom:40px}
+.empty h3{color:var(--ink);font-size:24px;font-weight:800;margin:0 0 8px;letter-spacing:-.03em}
+.empty .btn{margin-top:16px}
+
+/* price + grade screens: one column */
+.two{display:grid;grid-template-columns:1fr;gap:16px;margin:18px 0 40px}
+.scanner{position:relative;aspect-ratio:4/3;border-radius:24px;background:var(--s1);border:1.5px dashed var(--line2);display:grid;place-items:center;text-align:center;padding:24px;overflow:hidden;cursor:pointer}
+.scanner.over{border-color:var(--blue)}
+.scanner img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:var(--s2)}
+.corners{position:absolute;inset:14px;pointer-events:none;z-index:2}
+.corners i{position:absolute;width:30px;height:30px;border:3px solid var(--blue)}
+.corners i:nth-child(1){top:0;left:0;border-right:0;border-bottom:0;border-radius:10px 0 0 0}
+.corners i:nth-child(2){top:0;right:0;border-left:0;border-bottom:0;border-radius:0 10px 0 0}
+.corners i:nth-child(3){bottom:0;left:0;border-right:0;border-top:0;border-radius:0 0 0 10px}
+.corners i:nth-child(4){bottom:0;right:0;border-left:0;border-top:0;border-radius:0 0 10px 0}
+.beam{position:absolute;left:8%;right:8%;height:3px;background:var(--blue);box-shadow:0 0 18px var(--blue);top:10%;display:none;z-index:3;border-radius:2px}
+.busy .beam{display:block;animation:beam 1.3s ease-in-out infinite alternate}
+@keyframes beam{to{top:88%}}
+.btnrow{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+.idname{font-weight:800;font-size:30px;line-height:1.1;letter-spacing:-.035em}
+.pills{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.pill{display:inline-block;padding:6px 12px;border-radius:999px;font-size:14px;font-weight:700;background:var(--s2);border:1px solid var(--line2)}
+.pill.acc{background:var(--blue);color:#fff;border-color:transparent}
+.how{display:grid;gap:10px}
+.how div{display:grid;grid-template-columns:auto 1fr;column-gap:14px;align-items:center;background:var(--s2);border-radius:18px;padding:14px 16px}
+.how i{grid-row:1/3;font-style:normal;display:grid;place-items:center;width:36px;height:36px;border-radius:12px;background:var(--blue);color:#fff;font-weight:800}
+.how b{font-size:17px;font-weight:800}
+.how .note{font-size:14px}
+h3.sub{font-weight:800;font-size:21px;margin:28px 0 12px;letter-spacing:-.02em;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.panel h3.sub:first-child{margin-top:0}
+
+/* values + sales */
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 6px}
+.stat{background:var(--s2);border-radius:18px;padding:14px 16px;min-width:0}
+.stat small{display:block;color:var(--muted);font-size:14px;font-weight:700}
+.stat b{font-weight:800;font-size:24px;line-height:1.2;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:-.02em}
+.stat b.up{color:var(--blue2)} .stat b.down{color:var(--muted)}
+.stat.hot{background:var(--blue);color:#fff}
+.stat.hot small{color:rgba(255,255,255,.85)}
+.sales{list-style:none;margin:0;padding:0;border:1px solid var(--line);border-radius:20px;overflow:hidden;background:var(--s1)}
+.sales li{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;padding:14px 16px;border-top:1px solid var(--line)}
+.sales li:first-child{border-top:0}
+.sales .dot{width:10px;height:10px;border-radius:50%;background:var(--line2)}
+.sales li.used .dot{background:var(--blue)}
+.sales .t{min-width:0}
+.sales .t span{display:block;font-size:14px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sales .t strong{font-size:16px}
+.sales .p{font-weight:800;font-size:18px;text-align:right}
+.sales a{text-decoration:none}
+.sales a:hover strong{color:var(--blue2)}
+.sales-empty{border:1.5px dashed var(--line2);border-radius:18px;padding:16px;color:var(--muted);font-size:15px}
+.links{display:grid;gap:8px}
+.links a{display:flex;align-items:center;justify-content:space-between;min-height:52px;padding:10px 16px;border-radius:14px;background:var(--s2);text-decoration:none;font-weight:700;font-size:16px}
+.links a:hover{box-shadow:inset 0 0 0 1px var(--blue)}
+details.diy{margin-top:14px;border:1px solid var(--line);border-radius:18px;padding:4px 16px;background:var(--s1)}
+details.diy summary{cursor:pointer;font-weight:700;padding:12px 0;min-height:48px;display:flex;align-items:center;color:var(--muted)}
+details.diy[open] summary{color:var(--ink)}
+.row{display:grid;grid-template-columns:1fr auto;gap:8px}
+.row input{padding:13px 15px;border:1.5px solid var(--line2);border-radius:16px;background:var(--s1);width:100%;min-height:56px;font-size:17px}
+.xbtn{background:var(--s2);border:0;color:var(--ink);cursor:pointer;font-size:18px;width:44px;height:44px;border-radius:50%;flex:none}
+.xbtn:hover{background:var(--s3)}
+.desc{font-size:17px;line-height:1.55;margin:0;color:#D9DCE2}
+
+/* grade */
+.slots{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.slot{position:relative;border:1.5px dashed var(--line2);border-radius:18px;background:var(--s1);cursor:pointer;display:grid;place-items:center;text-align:center;padding:8px;color:var(--muted);font-weight:700;font-size:13px;overflow:hidden;aspect-ratio:1}
+.slot.big{grid-column:span 2;aspect-ratio:4/5;font-size:16px}
+.slot svg{width:28px;height:28px;margin:0 auto 6px;color:var(--muted);display:block}
+.slot img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.slot.done{border-style:solid;border-color:var(--blue)}
+.slot .tag{position:absolute;left:8px;bottom:8px;z-index:2;background:rgba(0,0,0,.8);color:#fff;font-size:12px;font-weight:800;padding:4px 9px;border-radius:8px}
+.slot .rm{position:absolute;right:6px;top:6px;z-index:3;width:32px;height:32px;border-radius:50%;border:0;background:rgba(0,0,0,.8);color:#fff;cursor:pointer;font-size:15px}
+.slot .ck{position:absolute;left:8px;top:8px;z-index:2;width:24px;height:24px;border-radius:50%;background:var(--blue);color:#fff;display:grid;place-items:center;font-size:13px;font-weight:900}
+.tips{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0}
+.tips span{font-size:14px;font-weight:700;color:var(--muted);background:var(--s1);border:1px solid var(--line);padding:7px 12px;border-radius:999px}
+.gauge{display:grid;justify-items:center;text-align:center;gap:14px}
+.ring{position:relative;width:170px;height:170px}
+.ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring svg circle:first-child{stroke:var(--s3)}
+.ring .num{position:absolute;inset:0;display:grid;place-items:center}
+.ring .num b{display:block;font-weight:800;font-size:66px;line-height:.9;letter-spacing:-.05em}
+.ring .num small{display:block;font-size:14px;font-weight:800;color:var(--muted);letter-spacing:.08em}
+.odds{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;margin-top:12px}
+.bars{display:grid;gap:14px;margin-top:4px}
+.bar .top{display:flex;justify-content:space-between;font-weight:800;font-size:16px}
+.bar .top span{color:var(--muted);font-weight:700}
+.bar .track{height:10px;border-radius:10px;background:var(--s3);overflow:hidden;margin:8px 0 6px}
+.bar .fill{height:100%;border-radius:10px;background:var(--blue);transition:width .8s cubic-bezier(.2,.8,.2,1)}
+.bar p{margin:0;font-size:14.5px;color:var(--muted)}
+.issues{margin:0;padding:0;list-style:none;display:grid;gap:8px}
+.issues li{display:flex;gap:12px;align-items:flex-start;font-size:15.5px;background:var(--s2);border-radius:14px;padding:12px 14px}
+.issues li::before{content:"";flex:none;width:8px;height:8px;border-radius:50%;background:var(--blue);margin-top:8px}
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.compare .stat b{font-size:28px}
+.verdict{margin-top:12px;padding:16px;border-radius:18px;background:var(--blue-soft);border:1px solid rgba(47,128,255,.35);font-weight:600;font-size:16px}
+
+/* sheets */
+dialog{border:1px solid var(--line2);border-radius:28px;padding:0;max-width:640px;width:calc(100% - 28px);background:var(--s1);color:var(--ink);max-height:calc(100dvh - 40px)}
+dialog::backdrop{background:rgba(0,0,0,.75);backdrop-filter:blur(4px)}
+.dlg{padding:24px}
+.dlg-head{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px;gap:10px}
+.dlg-head h2{font-weight:800;font-size:28px;margin:0;line-height:1.1;letter-spacing:-.035em}
+.grab{display:block;width:44px;height:5px;border-radius:3px;background:var(--line2);margin:0 auto 14px}
+.form{display:grid;grid-template-columns:1fr;gap:14px}
+.form .full{grid-column:1/-1}
+.seg{display:flex;border-radius:16px;overflow:hidden;width:100%;background:var(--s2);padding:4px;gap:4px}
+.seg button{flex:1;border:0;background:transparent;padding:11px 14px;cursor:pointer;font-weight:800;min-height:48px;color:var(--muted);border-radius:12px}
+.seg button[aria-pressed="true"]{background:var(--ink);color:#000}
+.big-photo{display:grid;grid-template-columns:110px 1fr;gap:16px;align-items:center;margin-bottom:18px}
+.big-photo .btn{min-height:52px}
+.thumb{width:110px;aspect-ratio:5/7;border-radius:14px;background:var(--s2);overflow:hidden;display:grid;place-items:center;color:var(--muted);font-size:12px;text-align:center;border:1.5px dashed var(--line2)}
+.thumb img{width:100%;height:100%;object-fit:cover}
+.paid input{font-size:30px;font-weight:800;padding:12px 16px;letter-spacing:-.02em;min-height:66px}
+details.more{border:1px solid var(--line2);border-radius:18px;padding:4px 16px;margin-top:16px}
+details.more summary{cursor:pointer;font-weight:800;padding:12px 0;min-height:48px;display:flex;align-items:center}
+details.more .form{padding:6px 0 14px}
+.actions{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap}
+.actions .btn{flex:1}
+.detail{display:grid;grid-template-columns:1fr;gap:20px}
+.detail .tilt{max-width:220px;margin:0 auto;width:100%}
+.tilt{--rx:0deg;--ry:0deg;--mx:50%;--my:50%;perspective:900px}
+.tilt .c3d{transform:rotateX(var(--rx)) rotateY(var(--ry));transition:transform .15s ease-out;border-radius:18px;position:relative;overflow:hidden;aspect-ratio:5/7;background:var(--s2);box-shadow:0 20px 50px rgba(47,128,255,.18)}
+.tilt .c3d img{width:100%;height:100%;object-fit:cover}
+.tilt .c3d::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at var(--mx) var(--my),rgba(255,255,255,.35),transparent 45%);mix-blend-mode:overlay;pointer-events:none}
+
+/* footer + bottom bar + toast */
+footer.foot{border-top:1px solid var(--line);margin-top:10px;padding:26px 0 40px;color:var(--faint);font-size:14px}
+footer.foot .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap;align-items:center}
+footer.foot nav{display:flex;gap:18px;align-items:center}
+footer.foot a{text-decoration:none;font-weight:700}
+.tabbar{display:none}
+.toast{position:fixed;left:50%;bottom:calc(24px + var(--nav-h) + env(safe-area-inset-bottom,0px));transform:translate(-50%,8px);background:#fff;color:#000;padding:14px 22px;border-radius:16px;font-weight:800;z-index:60;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;max-width:calc(100% - 32px);text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* wider screens: a bit roomier, same simple layout */
+@media (min-width:900px){
+  .wrap{max-width:1000px}
+  .hero{display:grid;grid-template-columns:1.3fr 1fr;gap:12px;align-items:stretch}
+  .statgrid{margin-top:0;grid-template-columns:1fr 1fr}
+  .stat2.wide{display:block}
+  .grid{grid-template-columns:1fr 1fr}
+  .two{grid-template-columns:380px 1fr;gap:20px;align-items:start}
+  .scanner{aspect-ratio:5/7}
+  .phead h1{font-size:52px}
+  .total{font-size:72px}
+  .stats{grid-template-columns:repeat(4,1fr)}
+  .detail{grid-template-columns:240px 1fr}
+  .detail .tilt{margin:0}
+  .form{grid-template-columns:1fr 1fr}
+  .grab{display:none}
+}
+/* phones */
+@media (max-width:640px){
+  :root{--nav-h:84px}
+  .toplinks,.site .right{display:none}
+  .mlogout{display:block}
+  main{padding-bottom:calc(var(--nav-h) + 16px)}
+  footer.foot{padding-bottom:calc(var(--nav-h) + 30px)}
+  dialog{margin:auto 0 0;width:100%;max-width:100%;border-radius:28px 28px 0 0;max-height:94dvh;padding-bottom:env(safe-area-inset-bottom,0px);border-bottom:0}
+  .dlg{padding:12px 18px 20px}
+  #editForm .actions{position:sticky;bottom:0;background:var(--s1);padding:12px 0 4px;margin-top:16px}
+  .tabbar{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:35;background:rgba(0,0,0,.92);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-top:1px solid var(--line);padding:8px 8px env(safe-area-inset-bottom,0px);height:calc(var(--nav-h) + env(safe-area-inset-bottom,0px))}
+  .tabbar a,.tabbar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;text-decoration:none;font-size:13px;font-weight:700;color:var(--faint);background:none;border:0;cursor:pointer;border-radius:16px;padding:6px 0}
+  .tabbar svg{width:26px;height:26px}
+  .tabbar [aria-current="page"]{color:#fff}
+  .tabbar [aria-current="page"] svg{color:var(--blue)}
+  .tabbar .addbtn{color:#fff}
+  .tabbar .addbtn svg{color:#fff;background:var(--blue);border-radius:12px;padding:4px;width:34px;height:34px}
+}
+@media (max-width:380px){
+  .total{font-size:48px}
+  .quick{grid-template-columns:1fr}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none !important;transition:none !important}
+  .spin{animation:spin 2s linear infinite !important}
+}
+</style>
+</head>
+<body>
+<div class="auth" id="auth">
+  <form class="auth-card" id="authForm">
+    <div class="slabs" aria-hidden="true"><i></i><i></i><i></i></div>
+    <a class="logo" aria-label="Card Vault"><svg viewBox="0 0 26 34" aria-hidden="true"><rect x="1.5" y="1.5" width="23" height="31" rx="5" fill="none" stroke="currentColor" stroke-width="2.4"/><rect x="5" y="5" width="16" height="6" rx="2" fill="var(--blue)"/></svg><b>Card Vault</b></a>
+    <h1>Know what your cards are <span>worth.</span></h1>
+    <p class="muted">Real sales, grade checks and your whole collection in one place.</p>
+    <div class="field"><label for="aEmail">Email</label><input id="aEmail" type="email" autocomplete="email" required></div>
+    <div class="field"><label for="aPass">Password</label><input id="aPass" type="password" autocomplete="current-password" minlength="6" required></div>
+    <div class="auth-btns">
+      <button class="btn primary" type="submit" data-mode="login">Log in</button>
+      <button class="btn ghost" type="submit" data-mode="signup">Create account</button>
+    </div>
+    <button type="button" class="linkbtn" id="forgot" style="text-align:left">Forgot password?</button>
+    <div class="status" id="authStatus" role="status"></div>
+  </form>
+</div>
+
+<header class="site">
+  <div class="wrap">
+    <a class="logo" href="#vault" aria-label="Card Vault home"><svg viewBox="0 0 26 34" aria-hidden="true"><rect x="1.5" y="1.5" width="23" height="31" rx="5" fill="none" stroke="currentColor" stroke-width="2.4"/><rect x="5" y="5" width="16" height="6" rx="2" fill="var(--blue)"/></svg><b>Card Vault</b></a>
+    <nav class="toplinks" aria-label="Main">
+      <a href="#vault" data-nav="vault">My cards</a>
+      <a href="#price-check" data-nav="price-check">Price</a>
+      <a href="#grade" data-nav="grade">Grade</a>
+    </nav>
+    <div class="right">
+      <button class="linkbtn" data-logout>Log out</button>
+      <button class="btn primary" data-add><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>Add card</button>
+    </div>
+    <button class="linkbtn mlogout" data-logout>Log out</button>
+  </div>
+</header>
+
+<main>
+<!-- VAULT -->
+<section id="view-vault">
+  <div class="wrap">
+    <div class="hero">
+      <div class="panel valuecard">
+        <div class="lbl">Your collection is worth</div>
+        <div class="total" id="sValue">$0</div>
+        <span class="chip" id="sGain" hidden></span>
+      </div>
+      <div class="statgrid">
+        <div class="stat2"><small>Cards</small><b id="sCount">0</b></div>
+        <div class="stat2"><small>Graded</small><b id="sGraded">0</b></div>
+        <div class="stat2"><small>Raw</small><b id="sRaw">0</b></div>
+        <div class="stat2 wide"><small>Up since bought</small><b id="sUpCount">0</b></div>
+      </div>
+    </div>
+    <div class="quick">
+      <a class="qa" href="#price-check"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg></span><b>Price a card</b><span>Scan it, see what it sells for</span></a>
+      <a class="qa" href="#grade"><span class="ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="3"/><path d="M8.5 6.5h7"/><path d="m9 14 2 2 4-4"/></svg></span><b>Check a grade</b><span>Will it be a 9 or a 10?</span></a>
+    </div>
+    <div class="alert" id="needEst" hidden>
+      <p id="needEstText"></p>
+      <button class="btn primary" id="needEstBtn">Find sales</button>
+    </div>
+
+    <div class="sec-head"><h2 class="sec">Your cards</h2><span class="note" id="showing"></span></div>
+    <div class="toolbar">
+      <label class="search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input id="q" type="search" placeholder="Search player, set, year, grade" aria-label="Search your cards"></label>
+      <select id="fSort" aria-label="Sort">
+        <option value="new">Newest added</option><option value="value">Highest value</option>
+        <option value="gain">Biggest gain</option><option value="player">Player A–Z</option><option value="year">Year</option>
+      </select>
+    </div>
+    <div class="chips" id="chips" role="group" aria-label="Filters"></div>
+    <div id="grid" class="grid"></div>
+    <div id="empty" class="empty" hidden>
+      <h3>Your vault is empty</h3>
+      <p>Snap a photo and enter what you paid. We’ll identify the card and find its recent sales.</p>
+      <button class="btn primary" data-add>Add your first card</button>
+    </div>
+    <div id="noMatch" class="empty" hidden><h3>No matches</h3><p>Try another search or tap “All”.</p></div>
+  </div>
+</section>
+
+<!-- PRICE CHECK -->
+<section id="view-price-check" hidden>
+  <div class="wrap">
+    <div class="phead">
+      <h1>Price <em>check</em></h1>
+      <p>Take a photo of any card or slab. We’ll tell you what it is and what it’s been selling for.</p>
+    </div>
+    <div class="two">
+      <div>
+        <div class="scanner" id="scanner">
+          <div class="corners" aria-hidden="true"><i></i><i></i><i></i><i></i></div>
+          <div class="beam" aria-hidden="true"></div>
+          <div id="scanText"><strong class="h-display" style="font-size:22px">Tap to add a photo</strong><br><span class="note">Front of the card, good light</span></div>
+          <img id="scanImg" alt="" hidden>
+        </div>
+        <input type="file" id="camFile" accept="image/*" capture="environment" hidden>
+        <input type="file" id="upFile" accept="image/*" hidden>
+        <div class="btnrow">
+          <button class="btn primary" id="camBtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Take photo</button>
+          <button class="btn ghost" id="upBtn">Upload</button>
+        </div>
+        <input type="file" id="checkBack" accept="image/*" hidden>
+        <button class="btn ghost block" id="checkBackBtn" style="margin-top:10px" hidden>Add back of card (finds year &amp; details)</button>
+        <div class="status" id="scanStatus"></div>
+      </div>
+      <div class="panel" id="checkPanel">
+        <div id="checkResult">
+          <h3 class="sub">How it works</h3>
+          <div class="how">
+            <div><i>1</i><b>Snap</b><span class="note">The front of the card or the slab.</span></div>
+            <div><i>2</i><b>Identify</b><span class="note">Year, set, number, parallel and grade.</span></div>
+            <div><i>3</i><b>Price</b><span class="note">Its newest sales, averaged.</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- GRADE CHECK -->
+<section id="view-grade" hidden>
+  <div class="wrap">
+    <div class="phead">
+      <h1>Grade <em>check</em></h1>
+      <p>Take 2 to 6 photos of a raw card. We’ll estimate its grade and tell you if it’s worth grading.</p>
+    </div>
+    <div class="two">
+      <div>
+        <div class="slots" id="slots"></div>
+        <div class="tips"><span>Out of the sleeve</span><span>Flat on a dark surface</span><span>No glare</span><span>Fill the frame</span></div>
+        <input type="file" id="gFile" accept="image/*" capture="environment" hidden>
+        <button class="btn primary block" id="gradeBtn" disabled>Estimate grade</button>
+        <button class="linkbtn" id="gReset" style="margin-top:8px">Start over</button>
+        <div class="status" id="gStatus"></div>
+      </div>
+      <div class="panel" id="gradePanel">
+        <div id="gradeResult">
+          <h3 class="sub">What we check</h3>
+          <div class="how">
+            <div><i>1</i><b>Centering</b><span class="note">Border ratios, front and back.</span></div>
+            <div><i>2</i><b>Corners &amp; edges</b><span class="note">Whitening, dings, chipping.</span></div>
+            <div><i>3</i><b>Surface</b><span class="note">Scratches, print lines, creases.</span></div>
+          </div>
+          <p class="note" style="margin:14px 0 0">Front and back are required. Corner close-ups make the estimate much more accurate.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer class="foot"><div class="wrap">
+  <span>© 2026 Card Vault · v5</span>
+  <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
+</div></footer>
+
+<nav class="tabbar" aria-label="Main">
+  <a href="#vault" data-nav="vault"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="4" y="3" width="11" height="15" rx="2"/><path d="M9 21h9a2 2 0 0 0 2-2V7"/></svg>Vault</a>
+  <a href="#price-check" data-nav="price-check"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>Price</a>
+  <a href="#grade" data-nav="grade"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="round"><rect x="5" y="2.5" width="14" height="19" rx="3"/><path d="M8.5 6.5h7"/><path d="m9 14 2 2 4-4"/></svg>Grade</a>
+  <button data-add class="addbtn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>Add</button>
+</nav>
+<dialog id="editDlg">
+  <form class="dlg" id="editForm" method="dialog">
+    <div class="grab"></div>
+    <div class="dlg-head"><h2 id="editTitle">Add a card</h2><button type="button" class="xbtn" data-close aria-label="Close">✕</button></div>
+    <div class="big-photo">
+      <div class="thumb" id="editThumb">No photo</div>
+      <div>
+        <input type="file" id="editCam" accept="image/*" capture="environment" hidden>
+        <input type="file" id="editFile" accept="image/*" hidden>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button type="button" class="btn primary" id="editCamBtn" style="flex:1">Take photo</button><button type="button" class="btn ghost" id="pickPhoto" style="flex:1">Upload</button></div>
+        <input type="file" id="editBack" accept="image/*" hidden>
+        <button type="button" class="btn ghost block" id="editBackBtn" style="margin-top:8px" hidden>Add back of card</button>
+        <div class="status" id="editStatus"></div>
+      </div>
+    </div>
+    <div class="field paid"><label for="f_paid">What I paid</label><input id="f_paid" inputmode="decimal" placeholder="$0.00"></div>
+    <details class="more" id="moreBox"><summary>Card details (filled in for you)</summary>
+    <div class="form">
+      <div class="field full"><label for="f_player">Player</label><input id="f_player" placeholder="Filled in from photo" autocomplete="off"></div>
+      <div class="field"><label for="f_year">Year</label><input id="f_year" inputmode="numeric"></div>
+      <div class="field"><label for="f_num">Card #</label><input id="f_num"></div>
+      <div class="field full"><label for="f_set">Brand &amp; set</label><input id="f_set"></div>
+      <div class="field"><label for="f_var">Parallel / variant</label><input id="f_var"></div>
+      <div class="field"><label for="f_sport">Sport</label>
+        <select id="f_sport"><option>Baseball</option><option>Basketball</option><option>Football</option><option>Hockey</option><option>Soccer</option><option>Golf</option><option>Racing</option><option>Wrestling</option><option>Other</option></select></div>
+      <div class="field full"><label>Condition</label>
+        <div class="seg" role="group" aria-label="Graded or raw"><button type="button" data-cond="graded" aria-pressed="true">Graded</button><button type="button" data-cond="raw" aria-pressed="false">Raw</button></div></div>
+      <div class="field graded-only"><label for="f_grader">Grading company</label>
+        <select id="f_grader"><option>PSA</option><option>BGS</option><option>SGC</option><option>CGC</option><option>TAG</option><option>Other</option></select></div>
+      <div class="field graded-only"><label for="f_grade">Grade</label><input id="f_grade" inputmode="decimal"></div>
+      <div class="field raw-only full" hidden><label for="f_rawcond">Condition</label>
+        <select id="f_rawcond"><option>Gem mint</option><option>Mint</option><option>Near mint</option><option>Excellent</option><option>Very good</option><option>Played</option></select></div>
+      <div class="field full"><label for="f_value">My value ($)</label><input id="f_value" inputmode="decimal" placeholder="Leave blank to use recent sales"></div>
+      <div class="field full"><label for="f_tags">Tags</label><input id="f_tags" placeholder="rookie, PC, for sale"></div>
+      <div class="field full"><label for="f_notes">Notes</label><textarea id="f_notes" rows="2"></textarea></div>
+    </div>
+    </details>
+    <div class="actions">
+      <button type="button" class="btn ghost" data-close>Cancel</button>
+      <button type="submit" class="btn primary" id="saveBtn">Save to vault</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="detailDlg"><div class="dlg" id="detailBody"></div></dialog>
+<div class="toast" id="toast" role="status"></div>
+<script>
+(() => {
+const $ = s => document.querySelector(s);
+const $$ = s => [...document.querySelectorAll(s)];
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const money = n => (n == null || isNaN(n)) ? "—" : "$" + Number(n).toLocaleString(undefined,{minimumFractionDigits:n<100?2:0,maximumFractionDigits:n<100?2:0});
+const kmoney = n => (n == null || isNaN(n)) ? "—" : n >= 1000 ? "$" + (Math.round(n/100)/10).toLocaleString() + "K" : "$" + Math.round(n);
+const num = v => { const n = parseFloat(String(v ?? "").replace(/[$,\s]/g,"")); return isNaN(n) ? null : n; };
+const toast = t => { const el=$("#toast"); el.textContent=t; el.classList.add("show"); clearTimeout(toast._t); toast._t=setTimeout(()=>el.classList.remove("show"),2600); };
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const today = () => new Date().toISOString().slice(0,10);
+const fmtDate = d => { if (!d) return "Date unknown"; const x = new Date(d+"T12:00:00"); return isNaN(x) ? d : x.toLocaleDateString(undefined,{month:"short",day:"numeric",year:"numeric"}); };
+function setStatus(el, t, err){ el.innerHTML = t; el.className = "status" + (err?" err":""); }
+const spinner = t => `<span class="pending"><span class="spin"></span>${t}</span>`;
+
+/* ---------- routing ---------- */
+const VIEWS = ["vault","price-check","grade"];
+function route(){
+  const v = VIEWS.includes(location.hash.slice(1)) ? location.hash.slice(1) : "vault";
+  VIEWS.forEach(x => $("#view-"+x).hidden = x !== v);
+  $$("[data-nav]").forEach(a => a.dataset.nav===v ? a.setAttribute("aria-current","page") : a.removeAttribute("aria-current"));
+  window.scrollTo(0,0);
+}
+addEventListener("hashchange", route); route();
+
+/* ---------- account + storage ---------- */
+let cards = [], current = null, filter = "all", user = null, bulkRunning = false;
+const CFG = window.CARD_VAULT_CONFIG || {};
+const sb = (window.supabase && CFG.SUPABASE_URL && !/PASTE/.test(CFG.SUPABASE_URL)) ? window.supabase.createClient(CFG.SUPABASE_URL, CFG.SUPABASE_ANON_KEY) : null;
+const BUCKET = "card-photos";
+const latest = id => cards.find(c => c.id === id);
+async function loadCards(){
+  const { data, error } = await sb.from("cards").select("id,data,photo_path,created_at").order("created_at", { ascending:false });
+  if (error) { toast("Couldn’t load your cards. Refresh to try again."); return; }
+  const paths = data.map(r => r.photo_path).filter(Boolean), urls = {};
+  if (paths.length) {
+    const { data: signed } = await sb.storage.from(BUCKET).createSignedUrls(paths, 60*60*24);
+    (signed || []).forEach(x => { if (x.signedUrl) urls[x.path] = x.signedUrl; });
+  }
+  cards = data.map(r => ({ ...r.data, id:r.id, photoPath:r.photo_path, image: r.photo_path ? (urls[r.photo_path] || null) : null }));
+  render();
+}
+async function putCard(card){
+  card = { ...card };
+  if (card.image && card.image.startsWith("data:") && !card._uploaded) {
+    const path = `${user.id}/${card.id}.jpg`;
+    const up = await sb.storage.from(BUCKET).upload(path, dataToBlob(card.image), { contentType:"image/jpeg", upsert:true });
+    if (up.error) throw up.error;
+    card.photoPath = path; card._uploaded = true;
+  }
+  const data = JSON.parse(JSON.stringify(card)); delete data.id; delete data.image; delete data.photoPath; delete data._uploaded;
+  const { error } = await sb.from("cards").upsert({ id:card.id, data, photo_path: card.photoPath || null });
+  if (error) throw error;
+  const i = cards.findIndex(c => c.id === card.id); if (i >= 0) cards[i] = card; else cards.unshift(card);
+  render(); if (current === card.id && $("#detailDlg").open) openDetail(card.id);
+  return card;
+}
+async function removeCard(id){
+  const c = latest(id);
+  const { error } = await sb.from("cards").delete().eq("id", id); if (error) throw error;
+  if (c?.photoPath) await sb.storage.from(BUCKET).remove([c.photoPath]);
+  cards = cards.filter(x => x.id !== id); render();
+}
+const newId = () => (crypto.randomUUID ? crypto.randomUUID() : "10000000-1000-4000-8000-100000000000".replace(/[018]/g, ch => (ch ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> ch / 4).toString(16)));
+
+function setUser(u){
+  const changed = (u?.id || null) !== (user?.id || null); user = u || null;
+  $("#auth").hidden = !!user;
+  if (changed) { cards = []; render(); if (user) loadCards(); }
+}
+async function initAuth(){
+  const st = $("#authStatus");
+  if (!sb) { setStatus(st, "This site isn’t connected to its database yet. Fill in config.js (see SETUP.md).", true); return; }
+  const { data:{ session } } = await sb.auth.getSession();
+  setUser(session?.user);
+  sb.auth.onAuthStateChange(async (event, sess) => {
+    setUser(sess?.user);
+    if (event === "PASSWORD_RECOVERY") {
+      const pw = prompt("Choose a new password (at least 6 characters):");
+      if (pw) { const { error } = await sb.auth.updateUser({ password: pw }); toast(error ? error.message : "Password updated"); }
+    }
+  });
+}
+$("#authForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  if (!sb) return;
+  const mode = e.submitter?.dataset.mode || "login", st = $("#authStatus");
+  const email = $("#aEmail").value.trim(), password = $("#aPass").value;
+  $$("#authForm .btn").forEach(b => b.disabled = true);
+  setStatus(st, mode === "signup" ? "Creating your account…" : "Logging in…");
+  const { data, error } = mode === "signup"
+    ? await sb.auth.signUp({ email, password, options:{ emailRedirectTo: location.origin } })
+    : await sb.auth.signInWithPassword({ email, password });
+  $$("#authForm .btn").forEach(b => b.disabled = false);
+  if (error) return setStatus(st, error.message, true);
+  if (mode === "signup" && !data.session) setStatus(st, "Almost done: check your email and tap the confirm link, then log in here.");
+  else setStatus(st, "");
+});
+$("#forgot").addEventListener("click", async () => {
+  const email = $("#aEmail").value.trim(), st = $("#authStatus");
+  if (!email) return setStatus(st, "Type your email above first.", true);
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin });
+  setStatus(st, error ? error.message : "Check your email for a password reset link.", !!error);
+});
+$$("[data-logout]").forEach(b => b.addEventListener("click", async () => { await sb?.auth.signOut(); location.hash = "#vault"; }));
+
+/* ---------- values ---------- */
+function estValue(c){
+  const e = c.estimate; if (!e || c.estimateFrom !== "sales") return null;
+  if (num(e.value) != null) return num(e.value);
+  if (num(e.low)!=null && num(e.high)!=null) return (num(e.low)+num(e.high))/2;
+  return null;
+}
+const cardValue = c => num(c.myValue) ?? estValue(c);
+const cardGain = c => { const v = cardValue(c), p = num(c.paid); return (v!=null && p!=null) ? v - p : null; };
+function valueLabel(c){
+  if (num(c.myValue) != null) return "Your value";
+  if (c.estimateFrom === "sales") return `Avg of last ${c.salesUsed || ""} sale${c.salesUsed===1?"":"s"}`.replace("  "," ");
+  if (c.pricedAt) return "No sales found";
+  return "No value yet";
+}
+function autoQuery(c){
+  const short = (t,n) => String(t||"").replace(/[#()\/,]/g," ").split(/\s+/).filter(Boolean).slice(0,n).join(" ");
+  const parts = [c.year, short(c.set,3), c.player, short(c.number,1), short(c.variant,3)];
+  if (c.condition==="graded" && c.grader && c.grader!=="Other") parts.push(c.grader, c.grade);
+  return parts.filter(Boolean).join(" ").replace(/\s+/g," ").trim();
+}
+const searchQuery = c => (c.searchQ && c.searchQ.trim()) || autoQuery(c);
+function marketLinks(q){
+  const e = encodeURIComponent(q);
+  return {
+    ebay: `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=261328&LH_Sold=1&LH_Complete=1&_sop=13&_ipg=240`,
+    goldin: `https://goldin.co/buy/?search=${e}&page=1&show_only=Sold%2520Items&number_of_lots=240`,
+    fanatics: `https://www.google.com/search?q=${encodeURIComponent('site:fanaticscollect.com '+q)}`
+  };
+}
+function diyHTML(c, saveable){
+  const q = searchQuery(c), L = marketLinks(q);
+  return `<details class="diy" data-sales><summary>Check sales yourself</summary>
+    <div class="field" style="margin-top:4px"><label>Search words</label>
+      <div class="row"><input data-sq value="${esc(q)}" aria-label="Search words">${saveable?`<button type="button" class="btn ghost" data-savesq>Save</button>`:""}</div></div>
+    <div class="links" style="margin:12px 0 10px">
+      <a data-mk="ebay" href="${L.ebay}" target="_blank" rel="noopener">eBay sold ↗</a>
+      <a data-mk="goldin" href="${L.goldin}" target="_blank" rel="noopener">Goldin sold ↗</a>
+      <a data-mk="fanatics" href="${L.fanatics}" target="_blank" rel="noopener">Fanatics Collect ↗</a>
+    </div></details>`;
+}
+document.addEventListener("input", e => {
+  const inp = e.target.closest("[data-sq]"); if (!inp) return;
+  const box = inp.closest("[data-sales]"), inCheck = !!box.closest("#checkResult");
+  const c = inCheck ? check : latest(current); if (!c) return;
+  if (inCheck) check.searchQ = inp.value;
+  const L = marketLinks(inp.value.trim() || autoQuery(c));
+  box.querySelectorAll("[data-mk]").forEach(a => a.href = L[a.dataset.mk]);
+});
+function statsHTML(c){
+  const e = c.estimate || {}, v = cardValue(c), paid = num(c.paid), g = cardGain(c);
+  const range = (c.estimateFrom==="sales" && num(e.low)!=null && num(e.high)!=null && num(c.myValue)==null) ? `${kmoney(num(e.low))}–${kmoney(num(e.high))}` : "—";
+  return `<div class="stats">
+    <div class="stat hot"><small>${esc(valueLabel(c))}</small><b>${money(v)}</b></div>
+    <div class="stat"><small>Range</small><b>${range}</b></div>
+    <div class="stat"><small>Paid</small><b>${money(paid)}</b></div>
+    <div class="stat"><small>${g!=null&&g<0?"Down":"Up"}</small><b class="${g==null?"":g<0?"down":"up"}">${g==null?"—":money(Math.abs(g))}</b></div>
+  </div>`;
+}
+function salesHTML(c){
+  if (c.pricing) return `<div class="sales-empty">${spinner("Searching eBay, Goldin, Fanatics and more for recent sales… this can take up to a minute.")}</div>`;
+  const s = c.sales || [];
+  if (!s.length) return `<div class="sales-empty">${c.pricedAt ? "No recent sales of this exact card turned up. Try the search links below, or set your own value." : "Not checked yet. Tap <b>Find sales</b> to look up recent sales."}</div>`;
+  const used = c.salesUsed || 0;
+  return `<ul class="sales">${s.map((x,i) => {
+    const inner = `<span class="dot"></span><div class="t"><strong>${esc(fmtDate(x.date))} · ${esc(x.source)}</strong><span>${esc(x.title||"")}</span></div><div class="p">${money(x.price)}</div>`;
+    return `<li class="${i<used?"used":""}">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">${inner}</a>`:inner}</li>`;
+  }).join("")}</ul>
+  <p class="note" style="margin:8px 0 0">Highlighted sales make up the average.${c.salesNote?" "+esc(c.salesNote):""}${c.pricedAt?` Checked ${esc(fmtDate(c.pricedAt))}.`:""}</p>`;
+}
+
+/* ---------- accent from your top card ---------- */
+let accentFrom = null;
+function setAccentFrom(url){
+  if (!url || url === accentFrom) return; accentFrom = url;
+  const img = new Image(); img.crossOrigin = "anonymous";
+  img.onload = () => {
+    try {
+      const cv = document.createElement("canvas"); cv.width = cv.height = 32;
+      const ctx = cv.getContext("2d"); ctx.drawImage(img,0,0,32,32);
+      const d = ctx.getImageData(0,0,32,32).data;
+      let best = null, bestScore = 0; const buckets = {};
+      for (let i=0;i<d.length;i+=4){
+        const r=d[i]/255,g=d[i+1]/255,b=d[i+2]/255, mx=Math.max(r,g,b), mn=Math.min(r,g,b), l=(mx+mn)/2;
+        if (mx===mn || l<.18 || l>.85) continue;
+        const s = (mx-mn)/(1-Math.abs(2*l-1)); if (s<.35) continue;
+        let h = mx===r ? ((g-b)/(mx-mn))%6 : mx===g ? (b-r)/(mx-mn)+2 : (r-g)/(mx-mn)+4; h = Math.round((h*60+360)%360/15)*15;
+        buckets[h] = (buckets[h]||0) + s;
+        if (buckets[h] > bestScore) { bestScore = buckets[h]; best = h; }
+      }
+      if (best != null && bestScore > 4) { document.documentElement.style.setProperty("--ah", best); document.documentElement.style.setProperty("--as", "88%"); }
+    } catch {}
+  };
+  img.src = url;
+}
+
+/* ---------- vault render ---------- */
+let shownTotal = 0, countRaf = 0;
+function countTo(el, target){
+  cancelAnimationFrame(countRaf);
+  if (reduce || Math.abs(target - shownTotal) < 1) { shownTotal = target; el.textContent = money(target); return; }
+  const from = shownTotal, t0 = performance.now(), dur = 700;
+  const step = t => { const k = Math.min(1, (t - t0) / dur), e = 1 - Math.pow(1 - k, 3); shownTotal = from + (target - from) * e; el.textContent = money(Math.round(shownTotal)); if (k < 1) countRaf = requestAnimationFrame(step); else { shownTotal = target; el.textContent = money(target); } };
+  countRaf = requestAnimationFrame(step);
+}
+function chipsHTML(){
+  const sports = [...new Set(cards.map(c=>c.sport).filter(Boolean))].sort();
+  const opts = [["all","All"],["graded","Graded"],["raw","Raw"],...sports.map(s=>["s:"+s,s])];
+  if (!opts.some(o=>o[0]===filter)) filter = "all";
+  $("#chips").innerHTML = opts.map(([v,l]) => `<button class="fchip" data-chip="${esc(v)}" aria-pressed="${v===filter}">${esc(l)}</button>`).join("");
+}
+$("#chips").addEventListener("click", e => { const b = e.target.closest("[data-chip]"); if (b) { filter = b.dataset.chip; render(); } });
+function gradeBadge(c){
+  if (c.pending) return "";
+  return c.condition==="graded" ? `<span class="badge">${esc(`${c.grader||""} ${c.grade||""}`.trim() || "Graded")}</span>` : `<span class="badge raw">RAW</span>`;
+}
+function render(){
+  chipsHTML();
+  const q = $("#q").value.trim().toLowerCase(), sort = $("#fSort").value;
+  let list = cards.filter(c => {
+    if (filter==="graded" && c.condition!=="graded") return false;
+    if (filter==="raw" && c.condition!=="raw") return false;
+    if (filter.startsWith("s:") && c.sport!==filter.slice(2)) return false;
+    if (!q) return true;
+    const hay = [c.player,c.year,c.set,c.number,c.variant,c.sport,c.grader,c.grade,c.rawCondition,c.condition,(c.tags||[]).join(" "),c.notes,c.description].join(" ").toLowerCase();
+    return q.split(/\s+/).every(w => hay.includes(w));
+  });
+  const by = {new:(a,b)=>(b.added||0)-(a.added||0),value:(a,b)=>(cardValue(b)||0)-(cardValue(a)||0),gain:(a,b)=>(cardGain(b)??-1e12)-(cardGain(a)??-1e12),player:(a,b)=>(a.player||"").localeCompare(b.player||""),year:(a,b)=>(num(a.year)||0)-(num(b.year)||0)};
+  list.sort(by[sort]);
+
+  const total = cards.reduce((s,c)=>s+(cardValue(c)||0),0);
+  const paidCards = cards.filter(c => num(c.paid)!=null && cardValue(c)!=null);
+  const gain = paidCards.reduce((s,c)=>s+cardGain(c),0);
+  countTo($("#sValue"), total);
+  $("#sUpCount").textContent = paidCards.filter(c => cardGain(c) > 0).length;
+  const gEl = $("#sGain");
+  if (paidCards.length) { gEl.hidden = false; gEl.className = "chip " + (gain<0?"down":"up"); gEl.textContent = `${gain<0?"▼":"▲"} ${money(Math.abs(gain))} ${gain<0?"below":"above"} what you paid`; }
+  else gEl.hidden = true;
+  $("#sCount").textContent = cards.length;
+  $("#sGraded").textContent = cards.filter(c=>c.condition==="graded").length;
+  $("#sRaw").textContent = cards.filter(c=>c.condition==="raw").length;
+  $("#showing").textContent = cards.length ? `${list.length} of ${cards.length}` : "";
+  $("#empty").hidden = cards.length > 0;
+  $("#noMatch").hidden = !(cards.length && !list.length);
+
+  const need = cards.filter(c => !c.pending && !c.pricing && !c.pricedAt && (c.player || c.image));
+  $("#needEst").hidden = !need.length || bulkRunning;
+  $("#needEstText").textContent = `${need.length} card${need.length===1?"":"s"} still need${need.length===1?"s":""} recent sales.`;
+
+  $("#grid").innerHTML = list.map(c => {
+    const v = cardValue(c), gn = cardGain(c);
+    const badge = c.pending ? "" : c.condition==="graded" ? `<span class="gbadge">${esc(`${c.grader||""} ${c.grade||""}`.trim() || "Graded")}</span>` : `<span class="gbadge raw">RAW</span>`;
+    const sub = c.pricing ? `<small class="mut">finding sales…</small>` : num(c.myValue)!=null ? `<small class="mut">your value</small>`
+      : gn!=null ? `<small class="${gn<0?"down":"up"}">${gn<0?"▼":"▲"} ${money(Math.abs(gn))}</small>`
+      : c.estimateFrom==="sales" ? `<small class="mut">avg of ${c.salesUsed}</small>` : c.pending ? "" : `<small class="mut">${c.pricedAt?"no sales found":"no value yet"}</small>`;
+    return `<button class="slab" data-open="${c.id}">
+      <span class="pic">${c.image?`<img src="${c.image}" alt="" loading="lazy">`:"No photo"}</span>
+      <span class="mid"><span class="who">${c.pending?`<span class="pending"><span class="spin"></span>Identifying…</span>`:esc(c.player||"Unknown card")}</span><span class="yr">${esc([c.year,c.set].filter(Boolean).join(" "))}${c.variant?` · ${esc(c.variant)}`:""}</span>${badge}</span>
+      <span class="end"><b>${v==null?"—":money(v)}</b>${sub}</span>
+    </button>`;
+  }).join("");
+}
+["#q","#fSort"].forEach(s => $(s).addEventListener("input", render));
+document.addEventListener("click", e => {
+  const b = e.target.closest("#grid [data-open], #show [data-open]");
+  if (b) openDetail(b.dataset.open);
+});
+$("#grid").addEventListener("pointermove", e => {
+  return;
+  const s = e.target.closest(".slab"); if (!s) return;
+  const r = s.getBoundingClientRect(), x = (e.clientX-r.left)/r.width, y = (e.clientY-r.top)/r.height;
+  s.style.setProperty("--mx", x*100+"%"); s.style.setProperty("--my", y*100+"%");
+  s.style.setProperty("--ry", ((x-.5)*10)+"deg"); s.style.setProperty("--rx", ((.5-y)*10)+"deg");
+});
+$("#grid").addEventListener("pointerout", e => { const s = e.target.closest(".slab"); if (s && !s.contains(e.relatedTarget)) { s.style.setProperty("--rx","0deg"); s.style.setProperty("--ry","0deg"); } });
+function tiltify(el){
+  if (!el || reduce) return;
+  el.addEventListener("pointermove", e => {
+    const r = el.getBoundingClientRect(), x = (e.clientX-r.left)/r.width, y = (e.clientY-r.top)/r.height;
+    el.style.setProperty("--ry", ((x-.5)*16)+"deg"); el.style.setProperty("--rx", ((.5-y)*16)+"deg");
+    el.style.setProperty("--mx", x*100+"%"); el.style.setProperty("--my", y*100+"%");
+  });
+  el.addEventListener("pointerleave", () => { el.style.setProperty("--rx","0deg"); el.style.setProperty("--ry","0deg"); });
+}
+
+/* ---------- images ---------- */
+function shrink(file, max=900, q=.8, cap=600000){
+  return new Promise((res, rej) => {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = () => {
+      let tries = 0;
+      const go = (m, qq) => {
+        const s = Math.min(1, m/Math.max(img.width,img.height));
+        const cv = document.createElement("canvas"); cv.width=Math.round(img.width*s); cv.height=Math.round(img.height*s);
+        cv.getContext("2d").drawImage(img,0,0,cv.width,cv.height);
+        const data = cv.toDataURL("image/jpeg", qq);
+        if (data.length > cap && tries++ < 6) return go(m*.85, Math.max(.5,qq-.06));
+        URL.revokeObjectURL(url); res({data, blob:dataToBlob(data)});
+      };
+      go(max, q);
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); rej(new Error("That file isn’t a photo this browser can open.")); };
+    img.src = url;
+  });
+}
+function dataToBlob(d){
+  const b = atob(d.split(",")[1]); const a = new Uint8Array(b.length);
+  for (let i=0;i<b.length;i++) a[i]=b.charCodeAt(i);
+  return new Blob([a], {type:"image/jpeg"});
+}
+const blobToB64 = b => new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(String(r.result).split(",")[1]); r.onerror = rej; r.readAsDataURL(b); });
+async function imageBlob(src){ return src.startsWith("data:") ? dataToBlob(src) : await (await fetch(src)).blob(); }
+
+/* ---------- server calls ---------- */
+class ScanError extends Error {}
+async function api(path, body){
+  const { data:{ session } } = await sb.auth.getSession();
+  if (!session) throw new ScanError("Please log in again.");
+  let r;
+  try { r = await fetch(path, { method:"POST", headers:{ "Content-Type":"application/json", Authorization:"Bearer " + session.access_token }, body: JSON.stringify(body) }); }
+  catch { throw new ScanError("Couldn’t reach the server. Check your connection and try again."); }
+  const out = await r.json().catch(() => null);
+  if (r.status === 404 && !out?.error) throw new ScanError("The server part of the site is missing. On GitHub, the api folder needs scan.js, prices.js and grade.js inside it.");
+  if (r.status === 504 || (!out && r.status >= 500)) throw new ScanError("That took too long. Try again.");
+  if (!r.ok || !out || out.error) throw new ScanError(out?.error || `Something went wrong (code ${r.status}).`);
+  return out;
+}
+async function identify(blob, backBlob){
+  return api("/api/scan", { front: await blobToB64(blob), back: backBlob ? await blobToB64(backBlob) : null });
+}
+async function findSales(c){
+  return api("/api/prices", { card: { query: searchQuery(c), condition: c.condition, grader: c.grader, grade: c.grade, rawCondition: c.rawCondition } });
+}
+/* ---------- grade check ---------- */
+const SLOTS = [["front","Front",1],["back","Back",1],["topLeft","Top-left corner",0],["topRight","Top-right corner",0],["bottomLeft","Bottom-left corner",0],["bottomRight","Bottom-right corner",0]];
+const SHORT = {front:"Front",back:"Back",topLeft:"TL",topRight:"TR",bottomLeft:"BL",bottomRight:"BR"};
+const gPhotos = {}; let gTarget = null, gResult = null;
+const camIcon = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>`;
+const cornerIcon = k => { const p = {topLeft:"M6 16V6h10",topRight:"M8 6h10v10",bottomLeft:"M6 8v10h10",bottomRight:"M8 18h10V8"}[k]; return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="${p}"/></svg>`; };
+function renderSlots(){
+  $("#slots").innerHTML = SLOTS.map(([k,label,req]) => {
+    const p = gPhotos[k];
+    return `<div class="slot ${req?"big":""} ${p?"done":""}" data-slot="${k}" role="button" tabindex="0" aria-label="${label} photo${p?" (added)":""}">
+      ${p?`<img src="${p.data}" alt=""><span class="ck">✓</span><span class="tag">${SHORT[k]}</span><button class="rm" data-rm="${k}" aria-label="Remove ${label} photo">✕</button>`
+         :`<span>${req?camIcon:cornerIcon(k)}${req?label:"Corner"}</span>`}
+    </div>`;
+  }).join("");
+  $("#gradeBtn").disabled = !(gPhotos.front && gPhotos.back);
+}
+$("#slots").addEventListener("click", e => {
+  const rm = e.target.closest("[data-rm]");
+  if (rm) { e.stopPropagation(); delete gPhotos[rm.dataset.rm]; renderSlots(); return; }
+  const s = e.target.closest("[data-slot]"); if (!s) return;
+  gTarget = s.dataset.slot; $("#gFile").click();
+});
+$("#slots").addEventListener("keydown", e => { if ((e.key==="Enter"||e.key===" ") && e.target.closest("[data-slot]")) { e.preventDefault(); e.target.closest("[data-slot]").click(); } });
+$("#gFile").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !gTarget) return;
+  const big = gTarget === "front" || gTarget === "back";
+  try { gPhotos[gTarget] = await shrink(f, big ? 1300 : 800, .82, big ? 700000 : 300000); renderSlots(); }
+  catch (err) { setStatus($("#gStatus"), err.message, true); }
+  const next = SLOTS.find(([k]) => !gPhotos[k]);
+  if (next && gPhotos.front && gPhotos.back && !next[2]) setStatus($("#gStatus"), `Next: ${next[1]} (optional, but more accurate).`);
+  else setStatus($("#gStatus"), "");
+};
+$("#gReset").onclick = () => { for (const k in gPhotos) delete gPhotos[k]; gResult = null; renderSlots(); setStatus($("#gStatus"), ""); $("#gradeResult").innerHTML = gradeIntro; };
+const gradeIntro = $("#gradeResult").innerHTML;
+$("#gradeBtn").onclick = async () => {
+  const st = $("#gStatus"); setStatus(st, "");
+  $("#gradeBtn").disabled = true;
+  $("#gradeResult").innerHTML = `<h3 class="sub">Inspecting your card</h3><p>${spinner("Checking centering, corners, edges and surface… this can take up to a minute.")}</p>`;
+  if (matchMedia("(max-width:880px)").matches) $("#gradePanel").scrollIntoView({behavior: reduce?"auto":"smooth", block:"start"});
+  try {
+    const photos = {};
+    for (const [k] of SLOTS) if (gPhotos[k]) photos[k] = await blobToB64(gPhotos[k].blob);
+    gResult = await api("/api/grade", { photos });
+    renderGrade();
+  } catch (err) {
+    setStatus(st, friendly(err), true);
+    $("#gradeResult").innerHTML = `<h3 class="sub">Couldn’t check it</h3><p>${esc(friendly(err))}</p>`;
+  }
+  $("#gradeBtn").disabled = !(gPhotos.front && gPhotos.back);
+};
+function ringSVG(g){
+  const r = 62, c = 2*Math.PI*r, pct = Math.max(0, Math.min(1, g/10));
+  return `<svg viewBox="0 0 150 150" aria-hidden="true"><circle cx="75" cy="75" r="${r}" fill="none" stroke="var(--s3)" stroke-width="12"/><circle cx="75" cy="75" r="${r}" fill="none" stroke="var(--blue)" stroke-width="12" stroke-linecap="round" stroke-dasharray="${c}" stroke-dashoffset="${c*(1-pct)}" style="transition:stroke-dashoffset 1s cubic-bezier(.2,.8,.2,1)"/></svg>`;
+}
+function renderGrade(){
+  const r = gResult, sg = r.subgrades || {}, card = r.card || {};
+  const bar = (name, o) => { const sc = num(o?.score); return `<div class="bar"><div class="top">${name}<span>${sc!=null?sc:"—"} / 10</span></div><div class="track"><div class="fill" style="width:${sc!=null?sc*10:0}%"></div></div>${o?.note?`<p>${esc(o.note)}</p>`:""}</div>`; };
+  const cen = sg.centering || {};
+  const ratios = [cen.frontLR&&`Front L/R ${cen.frontLR}`, cen.frontTB&&`Front T/B ${cen.frontTB}`, cen.backLR&&`Back L/R ${cen.backLR}`, cen.backTB&&`Back T/B ${cen.backTB}`].filter(Boolean);
+  const range = (r.low!=null && r.high!=null && r.low!==r.high) ? `Likely range PSA ${esc(r.low)}–${esc(r.high)}` : `Most likely PSA ${esc(r.grade)}`;
+  $("#gradeResult").innerHTML = `
+    <div class="gauge">
+      <div class="ring">${ringSVG(r.grade)}<div class="num"><span><small>PSA</small><b>${esc(r.grade)}</b></span></div></div>
+      <div>
+        <div class="idname" style="font-size:clamp(24px,3.6vw,32px)">${esc(card.player || "Your card")}</div>
+        <div class="note" style="margin-top:4px">${esc([card.year, card.set, card.number?"#"+card.number:"", card.variant].filter(Boolean).join(" · "))}</div>
+        <div class="odds">
+          <span class="chip">${range}</span>
+          ${r.chance10!=null?`<span class="chip">PSA 10 chance: ${Math.round(r.chance10)}%</span>`:""}
+          ${r.chance9plus!=null?`<span class="chip">9 or better: ${Math.round(r.chance9plus)}%</span>`:""}
+        </div>
+      </div>
+    </div>
+    ${r.summary?`<p class="desc" style="margin-top:16px">${esc(r.summary)}</p>`:""}
+    <h3 class="sub">Breakdown</h3>
+    <div class="bars">${bar("Centering", cen)}${bar("Corners", sg.corners)}${bar("Edges", sg.edges)}${bar("Surface", sg.surface)}</div>
+    ${ratios.length?`<div class="pills" style="margin-top:12px">${ratios.map(x=>`<span class="pill">${esc(x)}</span>`).join("")}</div>`:""}
+    ${(r.issues||[]).length?`<h3 class="sub">What we spotted</h3><ul class="issues">${r.issues.map(x=>`<li>${esc(x)}</li>`).join("")}</ul>`:""}
+    ${(r.photoTips||[]).length?`<p class="note" style="margin-top:12px"><b>Better photos would help:</b> ${esc(r.photoTips.join(" "))}</p>`:""}
+    <p class="note" style="margin-top:12px">Confidence: ${esc(r.confidence||"medium")}. This is an estimate from photos; graders see things photos can’t.</p>
+    <h3 class="sub">Is it worth grading?</h3>
+    <div id="worth"><button class="btn ghost block" id="worthBtn">Compare raw vs PSA ${esc(r.grade)} sales</button></div>
+    <div class="actions"><button class="btn primary" id="gSave">Add to my vault</button></div>`;
+}
+$("#gradeResult").addEventListener("click", async e => {
+  if (!gResult) return;
+  const card = gResult.card || {};
+  if (e.target.closest("#worthBtn")) {
+    const base = (card.searchQuery || [card.year, card.set, card.player, card.number, card.variant].filter(Boolean).join(" ")).replace(/#/g,"").trim();
+    if (!base) { $("#worth").innerHTML = `<p class="note">Couldn’t tell which card this is. Add it to your vault and fill in the details first.</p>`; return; }
+    const g = gResult.grade;
+    $("#worth").innerHTML = `<p>${spinner("Finding raw and graded sales… this can take up to a minute.")}</p>`;
+    const [raw, graded] = await Promise.allSettled([
+      findSales({ searchQ: base, condition: "raw" }),
+      findSales({ searchQ: `${base} PSA ${g}`, condition: "graded", grader: "PSA", grade: String(g) }),
+    ]);
+    const rv = raw.status==="fulfilled" ? raw.value.average : null, gv = graded.status==="fulfilled" ? graded.value.average : null;
+    const diff = (rv!=null && gv!=null) ? gv - rv : null;
+    const verdict = diff==null ? "Not enough recent sales to compare. Try the eBay sold links from Price check."
+      : diff > 0 ? `A PSA ${g} has been selling for about <b>${money(diff)} more</b> than a raw copy. Subtract grading fees and shipping to see if it’s worth it.`
+      : `Recent sales don’t show a gain from grading at PSA ${g}. Probably not worth grading unless it comes back higher.`;
+    $("#worth").innerHTML = `<div class="compare">
+        <div class="stat"><small>Raw (avg of recent sales)</small><b>${money(rv)}</b></div>
+        <div class="stat hot"><small>PSA ${esc(g)} (avg of recent sales)</small><b>${money(gv)}</b></div>
+      </div><div class="verdict">${verdict}</div>`;
+    return;
+  }
+  if (e.target.closest("#gSave")) {
+    const c = { id:newId(), added:Date.now(), image:gPhotos.front?.data || null, player:card.player||"", year:card.year||"", set:card.set||"", number:card.number||"", variant:card.variant||"", sport:card.sport||"", condition:"raw", searchQ:card.searchQuery||"",
+      gradeEstimate:{ grade:gResult.grade, low:gResult.low, high:gResult.high, chance10:gResult.chance10, at:today() } };
+    openEdit(c, "Add to vault");
+    Object.assign(editing, { gradeEstimate: c.gradeEstimate, searchQ: c.searchQ });
+  }
+});
+renderSlots();
+
+const friendly = e => (e instanceof ScanError) ? e.message : "Something went wrong. Try again.";
+const FIELDS = ["player","year","set","number","variant","sport","condition","grader","grade","cert","rawCondition"];
+function applyResult(card, r){
+  const out = {...card};
+  FIELDS.forEach(k => { const v = r?.[k]; if (v!=null && v!=="") out[k] = String(v); });
+  if (!["graded","raw"].includes(out.condition)) out.condition = out.grade ? "graded" : "raw";
+  if (r?.description) out.description = String(r.description);
+  if (r?.confidence) out.confidence = String(r.confidence);
+  if (r?.searchQuery) out.searchQ = String(r.searchQuery).replace(/#/g,"").trim();
+  delete out.pending; delete out.scanFailed;
+  return out;
+}
+function applySales(card, p){
+  const out = {...card, sales: p.sales || [], salesUsed: p.used || 0, salesNote: p.note || "", pricedAt: today()};
+  if (p.average != null) { out.estimate = { value:p.average, low:p.low, high:p.high }; out.estimateFrom = "sales"; }
+  else if (out.estimateFrom !== "sales") { delete out.estimate; delete out.estimateFrom; }
+  delete out.pricing;
+  return out;
+}
+/* run a sales lookup for a saved card, keeping the UI in sync */
+async function priceCard(id){
+  let c = latest(id); if (!c) return;
+  c = await putCard({...c, pricing:true});
+  try { const p = await findSales(c); c = await putCard(applySales(latest(id)||c, p)); return c; }
+  catch (err) { const now = {...(latest(id)||c)}; delete now.pricing; await putCard(now); throw err; }
+}
+
+/* ---------- add / edit sheet ---------- */
+let editing = null, editImage = null, editBlob = null, scanJob = null, userTouched = new Set();
+const F = id => $("#f_"+id);
+const FMAP = {player:"player",year:"year",set:"set",number:"num",variant:"var",sport:"sport",grader:"grader",grade:"grade",rawCondition:"rawcond"};
+function setCond(c){
+  $$("[data-cond]").forEach(b => b.setAttribute("aria-pressed", b.dataset.cond===c));
+  $$(".graded-only").forEach(el => el.hidden = c!=="graded");
+  $$(".raw-only").forEach(el => el.hidden = c!=="raw");
+}
+const getCond = () => document.querySelector('[data-cond][aria-pressed="true"]').dataset.cond;
+$$("[data-cond]").forEach(b => b.addEventListener("click", () => { setCond(b.dataset.cond); userTouched.add("condition"); }));
+Object.entries(FMAP).forEach(([k,id]) => F(id).addEventListener("input", () => userTouched.add(k)));
+function fillForm(c){
+  Object.entries(FMAP).forEach(([k,id]) => { F(id).value = c[k] || (k==="sport"?"Baseball":k==="grader"?"PSA":k==="rawCondition"?"Near mint":""); });
+  F("paid").value=c.paid??""; F("value").value=c.myValue??""; F("tags").value=(c.tags||[]).join(", "); F("notes").value=c.notes||"";
+  setCond(c.condition||"graded");
+}
+const setThumb = src => { $("#editThumb").innerHTML = src ? `<img src="${src}" alt="Card photo">` : "No photo"; $("#editThumb").style.borderStyle = src ? "solid" : "dashed"; };
+function collectForm(){
+  const o = {}; Object.entries(FMAP).forEach(([k,id]) => o[k] = F(id).value.trim());
+  o.number = o.number.replace(/^#/,""); o.condition = getCond();
+  return {...o, paid:num(F("paid").value), myValue:num(F("value").value), tags:F("tags").value.split(",").map(t=>t.trim()).filter(Boolean), notes:F("notes").value.trim()};
+}
+function openEdit(card, title){
+  editing = card ? JSON.parse(JSON.stringify(card)) : {id:newId(), added:Date.now()};
+  editImage = editing.image || null; scanJob = null; userTouched = new Set();
+  $("#editTitle").textContent = title || (card ? "Edit card" : "Add a card");
+  fillForm(editing); setThumb(editImage); setStatus($("#editStatus"), "");
+  $("#moreBox").open = !!card && !title;
+  editBlob = null; if (editImage) imageBlob(editImage).then(b => { editBlob = b; }).catch(() => {});
+  $("#editBackBtn").hidden = !editImage;
+  $("#editDlg").showModal();
+  if (!card) setTimeout(() => F("paid").focus({preventScroll:true}), 50);
+}
+$$("[data-add]").forEach(b => b.addEventListener("click", () => openEdit(null)));
+$("#pickPhoto").onclick = () => $("#editFile").click();
+$("#editCamBtn").onclick = () => $("#editCam").click();
+$("#editBackBtn").onclick = () => $("#editBack").click();
+$("#editBack").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !editBlob) return;
+  let r; try { r = await shrink(f); } catch (err) { return setStatus($("#editStatus"), err.message, true); }
+  startScan(editBlob, r.blob, true);
+};
+async function onEditPhoto(e){
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  let r; try { r = await shrink(f); } catch (err) { return setStatus($("#editStatus"), err.message, true); }
+  editImage = r.data; editBlob = r.blob; setThumb(editImage); $("#editBackBtn").hidden = false;
+  startScan(r.blob, null, false);
+}
+function startScan(front, back, isBack){
+  runEditJob(identify(front, back), isBack ? "Reading front and back…" : "Reading the card…");
+}
+function runEditJob(job, label){
+  const st = $("#editStatus");
+  setStatus(st, spinner(`${label} You can save now.`));
+  const sessionId = editing.id;
+  scanJob = job;
+  job.then(res => {
+    if (!$("#editDlg").open || editing.id !== sessionId || scanJob !== job) return;
+    const now = collectForm(), merged = applyResult(now, res);
+    userTouched.forEach(k => merged[k] = now[k]);
+    Object.assign(editing, {description:merged.description, confidence:merged.confidence, searchQ:merged.searchQ, estimate:merged.estimate, estimateFrom:merged.estimateFrom});
+    fillForm({...merged, paid:num(F("paid").value), myValue:num(F("value").value), tags:now.tags, notes:now.notes});
+    scanJob = null;
+    setStatus(st, `Found <b>${esc(merged.player||"card")}</b>${merged.year?" · "+esc(merged.year):""}. Save to look up its recent sales.`);
+  }).catch(err => { if (scanJob === job) { scanJob = null; setStatus(st, friendly(err), true); } });
+}
+$("#editFile").onchange = onEditPhoto; $("#editCam").onchange = onEditPhoto;
+$("#editForm").addEventListener("submit", async e => {
+  e.preventDefault();
+  let card = {...editing, ...collectForm(), image:editImage};
+  if (card.condition==="raw") { card.grader=""; card.grade=""; }
+  const job = scanJob, detailsChanged = editing.player !== undefined && ["player","year","set","number","variant","grade","grader","condition"].some(k => (editing[k]||"") !== (card[k]||""));
+  if (job) card.pending = true;
+  $("#saveBtn").disabled = true;
+  try { card = await putCard(card); $("#editDlg").close(); toast(job ? "Saved. Finishing the details…" : "Saved to your vault"); }
+  catch { setStatus($("#editStatus"), "Couldn’t save. Check your connection and try again.", true); $("#saveBtn").disabled = false; return; }
+  $("#saveBtn").disabled = false;
+  const id = card.id, keep = new Set(userTouched);
+  try {
+    if (job) {
+      const res = await job;
+      const now = latest(id) || card, merged = applyResult(now, res);
+      keep.forEach(k => merged[k] = now[k]);
+      await putCard(merged);
+    }
+    const c = latest(id);
+    if (c && c.player && num(c.myValue)==null && (job || !c.pricedAt || detailsChanged)) {
+      const done = await priceCard(id);
+      toast(done?.estimateFrom === "sales" ? `${done.player}: ${money(estValue(done))} from recent sales` : `${done?.player||"Card"} saved. No recent sales found.`);
+    }
+  } catch (err) {
+    const now = latest(id); if (now?.pending) { const out = {...now, scanFailed:true}; delete out.pending; await putCard(out).catch(()=>{}); }
+    toast(friendly(err));
+  }
+});
+$$("[data-close]").forEach(b => b.addEventListener("click", () => b.closest("dialog").close()));
+$$("dialog").forEach(d => d.addEventListener("click", e => { if (e.target===d) d.close(); }));
+
+/* ---------- bulk "find sales" ---------- */
+$("#needEstBtn").addEventListener("click", async () => {
+  const need = cards.filter(c => !c.pending && !c.pricing && !c.pricedAt && (c.player || c.image));
+  if (!need.length) return;
+  bulkRunning = true; render();
+  let n = 0;
+  for (const c of need) {
+    n++; toast(`Finding sales ${n} of ${need.length}…`);
+    try {
+      if (!c.player && c.image) { const res = await identify(await imageBlob(c.image)); await putCard(applyResult(latest(c.id)||c, res)); }
+      await priceCard(c.id);
+    } catch (err) { if (err instanceof ScanError && /log in|credits|key|turned off|missing/i.test(err.message)) { toast(err.message); break; } }
+  }
+  bulkRunning = false; render(); toast("Done finding sales");
+});
+
+/* ---------- detail ---------- */
+function openDetail(id){
+  const c = latest(id); if (!c) return; current = id;
+  const g = c.condition==="graded" ? `${c.grader||""} ${c.grade||""}`.trim() : `Raw${c.rawCondition?" · "+c.rawCondition:""}`;
+  const pills = [c.year, c.set, c.number?"#"+c.number:"", c.variant, c.sport].filter(Boolean);
+  $("#detailBody").innerHTML = `
+    <div class="grab"></div>
+    <div class="dlg-head"><h2>${c.pending?"Identifying…":esc(c.player||"Unknown card")}</h2><button type="button" class="xbtn" data-x aria-label="Close">✕</button></div>
+    <div class="detail">
+      <div class="tilt" id="tilt"><div class="c3d">${c.image?`<img src="${c.image}" alt="Card photo">`:`<div class="noimg" style="display:grid;place-items:center;height:100%;color:var(--muted)">No photo</div>`}</div></div>
+      <div>
+        <div class="pills" style="margin-top:0"><span class="pill acc">${esc(g)}</span>${pills.map(p=>`<span class="pill">${esc(p)}</span>`).join("")}</div>
+        ${c.description?`<p class="desc" style="margin-top:14px">${esc(c.description)}</p>`:""}
+        ${c.gradeEstimate?`<div class="chip" style="margin-top:12px">Estimated grade: PSA ${esc(c.gradeEstimate.grade)}${c.gradeEstimate.low!=null&&c.gradeEstimate.high!=null&&c.gradeEstimate.low!==c.gradeEstimate.high?` (${esc(c.gradeEstimate.low)}–${esc(c.gradeEstimate.high)})`:""}</div>`:""}
+        <div style="margin-top:16px">${statsHTML(c)}</div>
+        ${c.scanFailed?`<p class="note" style="margin:6px 0 0">We couldn’t read this photo last time. Tap Edit to fill in the details.</p>`:""}
+      </div>
+    </div>
+    <h3 class="sub">Recent sales <button type="button" class="btn ghost" data-findsales style="min-height:38px;padding:8px 14px;font-size:14px" ${c.pricing?"disabled":""}>${c.pricedAt?"Refresh":"Find sales"}</button></h3>
+    ${salesHTML(c)}
+    ${diyHTML(c, true)}
+    <div class="field" style="margin-top:16px"><label for="dVal">Set your own value</label>
+      <div class="row" style="grid-template-columns:1fr auto${c.myValue!=null?" auto":""}"><input id="dVal" inputmode="decimal" placeholder="${estValue(c)!=null?"Currently "+money(estValue(c)):"Type a value, like 4500"}" value="${c.myValue??""}"><button type="button" class="btn primary" data-setval>Save</button>${c.myValue!=null?`<button type="button" class="btn ghost" data-clearval>Use sales</button>`:""}</div>
+    </div>
+    <div class="status" id="dStatus"></div>
+    <div class="actions"><button class="btn danger" data-del>Delete</button><button class="btn ghost" data-edit>Edit</button>${c.image?`<button class="btn ghost" data-backbtn>Add back photo</button><input type="file" id="dBack" accept="image/*" hidden>`:""}</div>`;
+  const dlg = $("#detailDlg"); if (!dlg.open) dlg.showModal();
+  tiltify($("#tilt"));
+  const db = $("#dBack");
+  if (db) db.onchange = async ev => {
+    const f = ev.target.files[0]; ev.target.value = ""; if (!f) return;
+    let r; try { r = await shrink(f); } catch (err) { return setStatus($("#dStatus"), err.message, true); }
+    setStatus($("#dStatus"), spinner("Reading front and back… this can take up to a minute."));
+    try { const res = await identify(await imageBlob(c.image), r.blob); await putCard(applyResult(latest(c.id)||c, res)); toast("Card details updated"); await priceCard(c.id); }
+    catch (err) { setStatus($("#dStatus"), friendly(err), true); }
+  };
+}
+$("#detailDlg").addEventListener("click", async e => {
+  const c = latest(current); if (!c) return;
+  if (e.target.closest("[data-x]")) return $("#detailDlg").close();
+  if (e.target.closest("[data-edit]")) { $("#detailDlg").close(); return openEdit(c); }
+  if (e.target.closest("[data-del]")) {
+    if (!confirm(`Delete ${c.player||"this card"} from your vault?`)) return;
+    $("#detailDlg").close(); await removeCard(c.id); return toast("Card deleted");
+  }
+  if (e.target.closest("[data-savesq]")) {
+    const q = $("#detailBody [data-sq]").value.trim();
+    await putCard({...c, searchQ: q}); toast("Search words saved. Tap Refresh to use them."); return;
+  }
+  if (e.target.closest("[data-setval]")) {
+    const v = num($("#dVal").value);
+    if (v == null) { setStatus($("#dStatus"), "Enter a price, like 4500.", true); return; }
+    await putCard({...c, myValue:v}); toast(`Value set to ${money(v)}`); return;
+  }
+  if (e.target.closest("[data-clearval]")) { const out = {...c}; delete out.myValue; await putCard(out); toast("Using recent sales again"); return; }
+  if (e.target.closest("[data-backbtn]")) { $("#dBack").click(); return; }
+  if (e.target.closest("[data-findsales]")) {
+    try { const done = await priceCard(c.id); toast(done?.estimateFrom==="sales" ? `Average of recent sales: ${money(estValue(done))}` : "No recent sales found"); }
+    catch (err) { setStatus($("#dStatus"), friendly(err), true); }
+  }
+});
+
+/* ---------- price check ---------- */
+let check = null, checkBlob = null;
+const scanner = $("#scanner");
+$("#camBtn").onclick = () => $("#camFile").click();
+$("#upBtn").onclick = () => $("#upFile").click();
+scanner.addEventListener("click", () => $("#upFile").click());
+const onScan = e => { const f = e.target.files[0]; e.target.value=""; if (f) runCheck(f); };
+$("#camFile").onchange = onScan; $("#upFile").onchange = onScan;
+["dragover","dragenter"].forEach(t => scanner.addEventListener(t, e => { e.preventDefault(); scanner.classList.add("over"); }));
+["dragleave","drop"].forEach(t => scanner.addEventListener(t, () => scanner.classList.remove("over")));
+scanner.addEventListener("drop", e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) runCheck(f); });
+$("#checkBackBtn").onclick = () => $("#checkBack").click();
+$("#checkBack").onchange = async e => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f || !checkBlob) return;
+  let r; try { r = await shrink(f); } catch (err) { return setStatus($("#scanStatus"), err.message, true); }
+  runCheck(null, r.blob);
+};
+async function runCheck(file, backBlob){
+  const st = $("#scanStatus"); setStatus(st, "");
+  let img;
+  if (file) { try { img = await shrink(file); } catch (e) { return setStatus(st, e.message, true); } checkBlob = img.blob; }
+  else img = { data: $("#scanImg").src, blob: checkBlob };
+  $("#checkBackBtn").hidden = false;
+  $("#scanImg").src = img.data; $("#scanImg").hidden=false; $("#scanText").hidden=true;
+  scanner.classList.add("busy");
+  $("#checkResult").innerHTML = `<h3>Scanning</h3><p>${spinner("Identifying the card…")}</p>`;
+  if (matchMedia("(max-width:860px)").matches) $("#checkPanel").scrollIntoView({behavior: reduce?"auto":"smooth", block:"start"});
+  try {
+    const r = await identify(img.blob, backBlob||null);
+    check = applyResult({id:newId(), added:Date.now(), image:img.data}, r);
+    check.pricing = true; renderCheck();
+    scanner.classList.remove("busy");
+    try { check = applySales(check, await findSales(check)); }
+    catch (err) { delete check.pricing; setStatus(st, friendly(err), true); }
+    renderCheck();
+  } catch (e) {
+    setStatus(st, friendly(e), true);
+    $("#checkResult").innerHTML = `<h3>Couldn’t scan</h3><p>${esc(friendly(e))}</p>`;
+  }
+  scanner.classList.remove("busy");
+}
+function renderCheck(){
+  const c = check;
+  const g = c.condition==="graded" ? `${c.grader||""} ${c.grade||""}`.trim() : `Raw${c.rawCondition?" · "+c.rawCondition:""}`;
+  const pills = [c.year, c.set, c.number?"#"+c.number:"", c.variant].filter(Boolean);
+  $("#checkResult").innerHTML = `
+    <div class="idname">${esc(c.player||"Unknown player")}</div>
+    <div class="pills"><span class="pill acc">${esc(g)}</span>${pills.map(p=>`<span class="pill">${esc(p)}</span>`).join("")}</div>
+    ${c.description?`<p class="desc" style="margin-top:14px">${esc(c.description)}</p>`:""}
+    <div style="margin-top:16px">${statsHTML(c)}</div>
+    <h3>Recent sales</h3>
+    ${salesHTML(c)}
+    ${diyHTML(c, false)}
+    <div class="actions"><button class="btn primary" id="cSave" ${c.pricing?"disabled":""}>Add to my vault</button></div>`;
+}
+$("#checkResult").addEventListener("click", e => {
+  if (check && e.target.closest("#cSave")) { const c = {...check}; openEdit(c, "Add to vault"); Object.assign(editing, {sales:c.sales, salesUsed:c.salesUsed, salesNote:c.salesNote, pricedAt:c.pricedAt, estimate:c.estimate, estimateFrom:c.estimateFrom, description:c.description, searchQ:c.searchQ}); }
+});
+
+render();
+initAuth();
+})();
+</script>
+</body>
+</html>
