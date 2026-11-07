@@ -498,7 +498,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault · v11</span>
+  <span>© 2026 Card Vault · v12</span>
   <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -730,7 +730,7 @@ function soldQuery(c){
 }
 function soldButtons(c){
   if (c.pending || !(c.player || c.searchQ)) return "";
-  const q = soldQuery(c) + (c.condition==="graded" ? "" : " -psa -bgs -sgc -cgc"), e = encodeURIComponent(q);
+  const q = soldQuery(c), e = encodeURIComponent(q);
   const base = `https://www.ebay.com/sch/i.html?_nkw=${e}&_sacat=261328&_ipg=240`;
   return `<div class="two-btns">
     <a class="btn primary" href="${base}&LH_Sold=1&LH_Complete=1&_sop=13" target="_blank" rel="noopener">Sold on eBay ↗</a>
