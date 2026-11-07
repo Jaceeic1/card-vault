@@ -69,6 +69,47 @@ function parseEbay(html) {
   return out;
 }
 
+// Turn an eBay results page into plain text, keeping each listing's item number as [itm:123].
+function pageText(html) {
+  const cut = html.search(/matching fewer words/i);
+  if (cut > 0) html = html.slice(0, cut);
+  const body = html.slice(Math.max(0, html.search(/srp-results|s-item|s-card|<ul[^>]*results/i)));
+  const t = body
+    .replace(/<a\b[^>]*href="[^"]*\/itm\/(?:[^"\/?]*\/)?(\d{9,15})[^"]*"[^>]*>/gi, " [itm:$1] ")
+    .replace(/<\/(li|div|h3|span)>/gi, "$& ");
+  return strip(t).replace(/(\[itm:\d+\])(\s*\1)+/g, "$1").slice(0, 70000);
+}
+
+// Have Claude read eBay's sold page text and pick out sales of this exact card.
+async function readSalesFromText(card, text, key, ms) {
+  const grade = card.condition === "graded" ? `${card.grader || ""} ${card.grade || ""}`.trim() + " (sellers usually write just the company and number, e.g. PSA 10)" : "raw / ungraded";
+  const prompt = `Below is the text of an eBay "sold items" search results page. Each listing's item number appears as [itm:NUMBER] near its title.
+List the SOLD listings that are this exact card: ${card.query} (${grade}). Same player, year, set, card number if given, same parallel/serial numbering, and ${card.condition === "graded" ? "same grade from the same grading company" : "ungraded copies only"}. Skip lots, reprints, other parallels and other grades. Use each listing's own "Sold" date and its sold price (not shipping).
+Return ONLY JSON: {"sales":[{"date":"YYYY-MM-DD","price":number,"title":string,"itm":"NUMBER"}]}, newest first, up to 20.
+
+PAGE TEXT:
+${text}`;
+  try {
+    const ctl = new AbortController(); const timer = setTimeout(() => ctl.abort(), Math.max(ms, 3000));
+    const r = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST", signal: ctl.signal,
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01", "content-type": "application/json" },
+      body: JSON.stringify({ model: MODEL, max_tokens: 3000, messages: [{ role: "user", content: prompt }] }),
+    });
+    clearTimeout(timer);
+    if (!r.ok) { console.error("read page", r.status); return []; }
+    const d = await r.json();
+    const t = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("");
+    const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+    return (j.sales || []).map(s => ({
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "",
+      price: Number(String(s.price).replace(/[$,]/g, "")), source: "eBay",
+      title: String(s.title || "").slice(0, 160),
+      url: /^\d{9,15}$/.test(String(s.itm || "")) ? `https://www.ebay.com/itm/${s.itm}` : "",
+    })).filter(s => isFinite(s.price) && s.price > 0);
+  } catch (e) { console.error("read page failed", String(e)); return []; }
+}
+
 let ebayProblem = ""; // why eBay returned nothing, shown in the note so it's easy to see
 let useProxy = false;  // switches on after eBay blocks the server, for the rest of this lookup
 
@@ -98,11 +139,11 @@ async function getEbayPage(q, raw, proxied) {
     const html = await r.text();
     const items = parseEbay(html);
     if (items.length) return { items, problem: "" };
-    const blocked = /Pardon Our Interruption|captcha|verify you are a human|splashui/i.test(html);
+    const blocked = html.length < 150000 && /Pardon Our Interruption|Checking your browser|verify you are a human|px-captcha|challenge-platform/i.test(html);
     console.error("eBay: no items parsed", proxied ? "(via ScraperAPI)" : "", html.length, blocked ? "(blocked)" : "");
     if (blocked) return { items: [], problem: proxied ? "eBay blocked the check even through ScraperAPI" : "eBay blocked the direct check", blocked: !proxied };
-    if (!/s-item|s-card|srp-results/i.test(html)) return { items: [], problem: "eBay sent back an unexpected page", blocked: !proxied };
-    return { items: [], problem: "" }; // a real page with no results
+    // A real page our reader couldn't understand (eBay changes its layout): hand its text to Claude.
+    return { items: [], problem: "", text: pageText(html) };
   } catch (e) {
     console.error(proxied ? "ScraperAPI failed" : "eBay fetch failed", String(e));
     return { items: [], problem: proxied ? "ScraperAPI took too long" : "couldn’t reach eBay", blocked: !proxied };
@@ -260,10 +301,10 @@ module.exports = async (req, res) => {
   // Start the slow lookups right away, all at the same time.
   const estPromise = within(aiEstimate(card, today, ANTHROPIC_API_KEY), 45000, null);
   const webPromise = within(webSearchLookup({ ...card, query: tries[0] }, today, ANTHROPIC_API_KEY), 50000, { sales: [], note: "" });
-  const viaPromise = within(ebayViaClaude(card, tries[1] || tries[0], raw, today, ANTHROPIC_API_KEY), 50000, []);
+  const viaPromise = (process.env.SCRAPER_API_KEY || "").trim() ? Promise.resolve([]) : within(ebayViaClaude(card, tries[1] || tries[0], raw, today, ANTHROPIC_API_KEY), 50000, []);
 
   // eBay sold listings.
-  let items = [];
+  let items = [], pageRead = [];
   const searched = [];
   const hasKey = !!(process.env.SCRAPER_API_KEY || "").trim();
   if (hasKey) {
@@ -271,13 +312,19 @@ module.exports = async (req, res) => {
     // so run two searches at once: the broad one and the exact one).
     useProxy = true;
     const qs = [...new Set([tries[1] || tries[0], tries[0]])];
-    const results = await Promise.all(qs.map(q => within(getEbayPage(q, raw, true), Math.min(44000, left() - 8000), { items: [], problem: "ScraperAPI took too long" })));
+    const results = await Promise.all(qs.map(q => within(getEbayPage(q, raw, true), Math.min(36000, left() - 14000), { items: [], problem: "ScraperAPI took too long" })));
     results.forEach((r, i) => {
       searched.push(`${qs[i]} (${r.items.length})`);
       const ids = new Set(items.map(s => s.url));
       items = items.concat(r.items.filter(s => !ids.has(s.url)));
     });
-    if (!items.length) ebayProblem = results.map(r => r.problem).find(Boolean) || "ScraperAPI found no eBay sales for these words";
+    if (!items.length) {
+      const text = results.map(r => r.text || "").filter(Boolean).sort((a, b) => b.length - a.length)[0];
+      if (text) {
+        pageRead = await readSalesFromText(card, text, ANTHROPIC_API_KEY, Math.min(20000, left()));
+        if (!pageRead.length) ebayProblem = "eBay's page was read but no matching sales were on it";
+      } else ebayProblem = results.map(r => r.problem).find(Boolean) || "ScraperAPI found no eBay sales for these words";
+    }
   } else {
     for (const q of tries) {
       if (left() < 30000) break;
@@ -289,7 +336,7 @@ module.exports = async (req, res) => {
     }
     if (ebayProblem && /blocked|refused|unexpected/.test(ebayProblem)) ebayProblem += " (add a SCRAPER_API_KEY in Vercel to fix this)";
   }
-  let ebay = [], via = "";
+  let ebay = pageRead.slice(), via = "";
   if (items.length) ebay = (await within(pickMatches(card, items.slice(0, 60), ANTHROPIC_API_KEY), Math.min(15000, left()), null)) || [];
   const viaSales = await within(viaPromise, left(), []);
   if (!ebay.length && viaSales.length) { ebay = viaSales; via = " (read by Claude)"; }
