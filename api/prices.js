@@ -84,8 +84,8 @@ function pageText(html) {
 async function readSalesFromText(card, text, key, ms) {
   const grade = card.condition === "graded" ? `${card.grader || ""} ${card.grade || ""}`.trim() + " (sellers usually write just the company and number, e.g. PSA 10)" : "raw / ungraded";
   const prompt = `Below is the text of an eBay "sold items" search results page. Each listing's item number appears as [itm:NUMBER] near its title.
-List the SOLD listings that are this exact card: ${card.query} (${grade}). Same player, year, set, card number if given, same parallel/serial numbering, and ${card.condition === "graded" ? "same grade from the same grading company" : "ungraded copies only"}. Skip lots, reprints, other parallels and other grades. Use each listing's own "Sold" date and its sold price (not shipping).
-Return ONLY JSON: {"sales":[{"date":"YYYY-MM-DD","price":number,"title":string,"itm":"NUMBER"}]}, newest first, up to 20.
+List the SOLD listings that are this exact card: ${card.query} (${grade}). Same player, year, set, card number if given, same parallel/serial numbering, and ${card.condition === "graded" ? "same grade from the same grading company" : "ungraded copies only"}. Skip lots, reprints, other parallels and other grades. Be reasonable: sellers write titles very differently (word order, "2018-19", "WC", missing card number, extra words like GEM MINT or RC), so include a listing whenever it is clearly this card in this grade. Use each listing's own "Sold" date and its sold price (not shipping).
+Return ONLY JSON: {"sales":[{"date":"YYYY-MM-DD","price":number,"title":string,"itm":"NUMBER"}],"listings_on_page":number (how many sold listings of ANY card the page shows),"examples":[up to 3 listing titles from the page, exactly as written],"page_is":string (a few words: e.g. "eBay sold results", "eBay active listings", "blocked/verification page", "no results")}. Sales newest first, up to 20.
 
 PAGE TEXT:
 ${text}`;
@@ -101,6 +101,7 @@ ${text}`;
     const d = await r.json();
     const t = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("");
     const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+    readSalesFromText.last = { count: Number(j.listings_on_page) || 0, examples: (j.examples || []).map(String).slice(0, 2), pageIs: String(j.page_is || "").slice(0, 60) };
     return (j.sales || []).map(s => ({
       date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "",
       price: Number(String(s.price).replace(/[$,]/g, "")), source: "eBay",
@@ -183,6 +184,7 @@ Return ONLY JSON: {"sales":[{"date":"YYYY-MM-DD","price":number,"title":string,"
     const d = await r.json();
     const t = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("");
     const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
+    readSalesFromText.last = { count: Number(j.listings_on_page) || 0, examples: (j.examples || []).map(String).slice(0, 2), pageIs: String(j.page_is || "").slice(0, 60) };
     return (j.sales || []).map(s => ({
       date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "",
       price: Number(String(s.price).replace(/[$,]/g, "")),
@@ -322,7 +324,11 @@ module.exports = async (req, res) => {
       const text = results.map(r => r.text || "").filter(Boolean).sort((a, b) => b.length - a.length)[0];
       if (text) {
         pageRead = await readSalesFromText(card, text, ANTHROPIC_API_KEY, Math.min(20000, left()));
-        if (!pageRead.length) ebayProblem = "eBay's page was read but no matching sales were on it";
+        if (!pageRead.length) {
+          const info = readSalesFromText.last || {};
+          const itms = (text.match(/\[itm:\d+\]/g) || []).length;
+          ebayProblem = `eBay's page was read but no matching sales were on it (page: ${info.pageIs || "?"}; ${info.count ?? "?"} listings, ${itms} item links, ${text.length} characters${info.examples && info.examples.length ? `; e.g. “${info.examples[0]}”` : ""})`;
+        }
       } else ebayProblem = results.map(r => r.problem).find(Boolean) || "ScraperAPI found no eBay sales for these words";
     }
   } else {
@@ -483,7 +489,8 @@ Return ONLY JSON: {"sales":[{"grade":"10","date":"YYYY-MM-DD","price":number,"ti
       const d = await r.json();
       const t = (d.content || []).filter(b => b.type === "text").map(b => b.text).join("");
       const j = JSON.parse(t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1));
-      return (j.sales || []).map(s => ({ grade: String(s.grade || ""), date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "",
+      readSalesFromText.last = { count: Number(j.listings_on_page) || 0, examples: (j.examples || []).map(String).slice(0, 2), pageIs: String(j.page_is || "").slice(0, 60) };
+    return (j.sales || []).map(s => ({ grade: String(s.grade || ""), date: /^\d{4}-\d{2}-\d{2}$/.test(String(s.date || "")) ? s.date : "",
         price: Number(String(s.price).replace(/[$,]/g, "")), source: "eBay", title: String(s.title || "").slice(0, 160),
         url: /^https?:\/\/(www\.)?ebay\.com\//.test(String(s.url || "")) ? String(s.url) : "" }));
     } catch { return []; }
