@@ -492,7 +492,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault · v7</span>
+  <span>© 2026 Card Vault · v8</span>
   <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -756,11 +756,11 @@ function salesHTML(c){
   const s = c.sales || [];
   if (!s.length) return `<div class="sales-empty">${c.pricedAt ? `No sales of this exact card turned up${c.estimateFrom==="ai"?`, so the value shown is an <b>estimate</b>, not a real sale${c.estimateBasis?`: ${esc(c.estimateBasis.replace(/[.\s]+$/,""))}`:""}`:""}. Try the search links below, or set your own value.${c.salesNote?`<br><small>${esc(c.salesNote)}</small>`:""}` : "Not checked yet. Tap <b>Find sales</b> to look up recent sales."}</div>`;
   const used = c.salesUsed || 0;
-  return `<ul class="sales">${s.map((x,i) => {
+  return `${c.salesNote?`<p class="note" style="margin:0 0 10px">${esc(c.salesNote)}</p>`:""}<ul class="sales">${s.map((x,i) => {
     const inner = `<span class="dot"></span><div class="t"><strong>${esc(fmtDate(x.date))} · ${esc(x.source)}</strong><span>${esc(x.title||"")}</span></div><div class="p">${money(x.price)}</div>`;
     return `<li class="${i<used?"used":""}">${x.url?`<a href="${esc(x.url)}" target="_blank" rel="noopener" style="display:contents">${inner}</a>`:inner}</li>`;
   }).join("")}</ul>
-  <p class="note" style="margin:8px 0 0">Highlighted sales make up the average.${c.salesNote?" "+esc(c.salesNote):""}${c.pricedAt?` Checked ${esc(fmtDate(c.pricedAt))}.`:""}</p>`;
+  <p class="note" style="margin:8px 0 0">Highlighted sales make up the average.${c.pricedAt?` Checked ${esc(fmtDate(c.pricedAt))}.`:""}</p>`;
 }
 
 /* ---------- accent from your top card ---------- */
