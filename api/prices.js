@@ -666,17 +666,15 @@ async function activeLookup(card, key, res) {
 // Averages the newest recent sales the web search can find; if there are none,
 // falls back to an estimate. The card page links to eBay sold/active for checking.
 async function estimateLookup(card, today, key, res) {
-  const within = (p, ms, fb) => Promise.race([p, new Promise(r => setTimeout(() => r(fb), ms))]);
+  // Value = the most recent real sale found. No sale found = no value (no guessing).
+  const within = (pr, ms, fb) => Promise.race([pr, new Promise(r => setTimeout(() => r(fb), ms))]);
   const q = card.query.replace(/\b\d{6,}\b/g, " ").replace(/\s+/g, " ").trim();
-  const [web, est] = await Promise.all([
-    within(webSearchLookup({ ...card, query: q }, today, key), 90000, { sales: [] }),
-    within(aiEstimate({ ...card, query: q }, today, key), 60000, null),
-  ]);
-  const sum = summarize(web.sales || [], today, "");
-  // Only trust sales from roughly the last year for the estimate.
-  const fresh = (sum.sales || []).slice(0, sum.used).every(s => s.date && (Date.parse(today) - Date.parse(s.date)) / 86400000 <= 365);
-  if (sum.average != null && fresh) {
-    return res.status(200).json({ ...sum, note: "" });
-  }
-  return res.status(200).json({ sales: [], average: null, used: 0, note: "", estimate: est || (sum.average != null ? { value: Math.round(sum.average), low: sum.low, high: sum.high, basis: "Based on older sales." } : null) });
+  const web = await within(webSearchLookup({ ...card, query: q }, today, key), 100000, { sales: [] });
+  const sales = (web.sales || [])
+    .filter(s => isFinite(s.price) && s.price > 0 && s.date && Date.parse(s.date) <= Date.parse(today) + 86400000)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  if (!sales.length) return res.status(200).json({ sales: [], average: null, used: 0, note: "No sales found." });
+  const last = sales[0];
+  return res.status(200).json({ sales: sales.slice(0, 10), average: last.price, used: 1,
+    low: Math.min(...sales.slice(0, 5).map(s => s.price)), high: Math.max(...sales.slice(0, 5).map(s => s.price)), note: "" });
 }
