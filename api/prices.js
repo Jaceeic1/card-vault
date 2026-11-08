@@ -669,12 +669,30 @@ async function estimateLookup(card, today, key, res) {
   // Value = the most recent real sale found. No sale found = no value (no guessing).
   const within = (pr, ms, fb) => Promise.race([pr, new Promise(r => setTimeout(() => r(fb), ms))]);
   const q = card.query.replace(/\b\d{6,}\b/g, " ").replace(/\s+/g, " ").trim();
-  const web = await within(webSearchLookup({ ...card, query: q }, today, key), 100000, { sales: [] });
+  const web = await within(webSearchLookup({ ...card, query: q }, today, key), 55000, { sales: [] });
   const sales = (web.sales || [])
     .filter(s => isFinite(s.price) && s.price > 0 && s.date && Date.parse(s.date) <= Date.parse(today) + 86400000)
     .sort((a, b) => b.date.localeCompare(a.date));
-  if (!sales.length) return res.status(200).json({ sales: [], average: null, used: 0, note: "No sales found." });
-  const last = sales[0];
-  return res.status(200).json({ sales: sales.slice(0, 10), average: last.price, used: 1,
-    low: Math.min(...sales.slice(0, 5).map(s => s.price)), high: Math.max(...sales.slice(0, 5).map(s => s.price)), note: "" });
+  const clean = list => (list || [])
+    .filter(s => isFinite(s.price) && s.price > 0 && s.date && Date.parse(s.date) <= Date.parse(today) + 86400000)
+    .sort((a, b) => b.date.localeCompare(a.date));
+  const answer = (list, extra) => {
+    const last = list[0];
+    return res.status(200).json({ sales: list.slice(0, 10), average: last.price, used: 1,
+      low: Math.min(...list.slice(0, 5).map(s => s.price)), high: Math.max(...list.slice(0, 5).map(s => s.price)), note: "", ...extra });
+  };
+  if (sales.length) return answer(sales, {});
+
+  // Nothing for the exact description. The scan may be a little off (insert name, set, number),
+  // so search broadly and take the closest matching card.
+  const grade = card.condition === "graded" ? `${card.grader || ""} ${card.grade || ""}`.trim() : "raw (ungraded)";
+  const loosePrompt = `Today's date is ${today}. A collector's card was identified from a photo as: "${q}" (${grade}). The description may be slightly wrong: the insert or parallel name, set name, year or card number could be off.
+Search broadly (player name + year + brand, player name + insert style, player name + set) to find the card that best matches this description, then find its most recent completed sales (final sold prices) in the same condition/grade. Use any reliable source (eBay sold listings, 130point, Goldin, Fanatics Collect, Card Ladder, SportsCardsPro, PSA Auction Prices Realized and others). Prefer the newest sales.
+Only use ONE card: the closest match (same player, same year/brand if possible, closest insert/design). Never invent a sale.
+Return ONLY JSON: {"sales":[{"date":"YYYY-MM-DD","price":number,"source":string,"title":string,"url":string}],"note":"Closest match: <the exact card name you matched>"}
+Up to 10 sales, newest first. If nothing similar sold, return {"sales":[],"note":""}.`;
+  const loose = await within(webSearchLookup({ ...card, query: q }, today, key, loosePrompt), 58000, { sales: [] });
+  const near = clean(loose.sales);
+  if (near.length) return answer(near, { similar: true, note: String(loose.note || "").slice(0, 200) });
+  return res.status(200).json({ sales: [], average: null, used: 0, note: "No sales found." });
 }
