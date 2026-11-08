@@ -498,7 +498,7 @@ footer.foot a{text-decoration:none;font-weight:700}
 </main>
 
 <footer class="foot"><div class="wrap">
-  <span>© 2026 Card Vault · v13</span>
+  <span>© 2026 Card Vault · v14</span>
   <nav><a href="#vault">Vault</a><a href="#price-check">Price check</a><a href="#grade">Grade check</a><button class="linkbtn" data-logout>Log out</button></nav>
 </div></footer>
 
@@ -671,7 +671,7 @@ const cardValue = c => num(c.myValue) ?? estValue(c);
 const cardGain = c => { const v = cardValue(c), p = num(c.paid); return (v!=null && p!=null) ? v - p : null; };
 function valueLabel(c){
   if (num(c.myValue) != null) return "Your value";
-  if (c.estimateFrom === "sales") return "Last sold";
+  if (c.estimateFrom === "sales") return c.similar ? "Last sold (similar card)" : "Last sold";
   if (c.pricedAt) return "No sales found";
   return "No value yet";
 }
@@ -741,7 +741,7 @@ function estimateStatus(c, canUpdate){
   if (c.pricing) return `<div class="sales-empty" style="margin-top:12px">${spinner("Finding the last sale… this can take up to a minute.")}</div>`;
   const last = (c.sales||[]).find(x => x.date) || (c.sales||[])[0];
   const why = c.estimateFrom==="sales" && last ? `Last sold${last.date?` ${fmtDate(last.date)}`:""}${last.source?` on ${last.source}`:""}.` : c.pricedAt ? "No sales found for this card." : "Not checked yet.";
-  return `<p class="note" style="margin:10px 2px 0">${esc(why)}${c.pricedAt?` Updated ${esc(fmtDate(c.pricedAt))}.`:""}</p>
+  return `<p class="note" style="margin:10px 2px 0">${esc(why)}${c.similar&&c.similarNote?` ${esc(c.similarNote.replace(/[.\s]+$/,""))}.`:""}${c.similar?" The exact card had no sales found, so this is the closest match.":""}${c.pricedAt?` Updated ${esc(fmtDate(c.pricedAt))}.`:""}</p>
     ${canUpdate?`<button type="button" class="btn ghost block" data-findsales style="margin-top:10px">${c.pricedAt?"Check again":"Find last sale"}</button>`:""}`;
 }
 /* ---------- active listings ---------- */
@@ -1130,7 +1130,7 @@ function applyResult(card, r){
 }
 function applySales(card, p){
   const out = {...card, sales: p.sales || [], salesUsed: p.used || 0, salesNote: p.note || "", pricedAt: today()};
-  if (p.average != null) { out.estimate = { value:p.average, low:p.low, high:p.high }; out.estimateFrom = "sales"; delete out.estimateBasis; }
+  if (p.average != null) { out.estimate = { value:p.average, low:p.low, high:p.high }; out.estimateFrom = "sales"; delete out.estimateBasis; out.similar = !!p.similar; out.similarNote = p.similar ? (p.note||"") : ""; }
   else if (out.estimateFrom !== "sales") { delete out.estimate; delete out.estimateFrom; delete out.estimateBasis; }
   delete out.pricing;
   return out;
